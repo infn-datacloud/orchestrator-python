@@ -11,6 +11,9 @@ package-mode = false
 python = ">=3.10,<4.0.0"
 fastapi = "^0.115.12"
 kafka-python = "^2.2.7"
+pydantic-settings = "^2.9.1"
+sqlalchemy = "^2.0.41"
+pydantic = {extras = ["email"], version = "^2.11.4"}
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.5.0"
@@ -19,6 +22,7 @@ pytest-cases = "^3.8.2"
 pytest-cov = {extras = ["toml"], version = "^6.0.0"}
 pytest-mock = "^3.12.0"
 ruff = "^0.9.6"
+fastapi-cli = "^0.0.7"
 
 [build-system]
 requires = ["poetry-core"]

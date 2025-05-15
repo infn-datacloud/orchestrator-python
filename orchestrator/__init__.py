@@ -6,6 +6,7 @@ from functools import lru_cache
 from fastapi import FastAPI
 
 from orchestrator.config import API_V1_STR, Settings
+from orchestrator.v1.router import router as router_v1
 
 
 @lru_cache
@@ -51,5 +52,5 @@ sub_app_v1 = FastAPI(
     title=settings.PROJECT_NAME,
     version=version,
 )
-# sub_app_v1.include_router(router_v1)
+sub_app_v1.include_router(router_v1)
 app.mount(API_V1_STR, sub_app_v1)

@@ -2,12 +2,12 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from orchestrator.common.exceptions import ConflictError
 from orchestrator.common.schemas import ErrorMessage, ItemID, PaginationQuery
-from orchestrator.common.utils import get_paginated_list
+from orchestrator.common.utils import add_allow_header_to_resp, get_paginated_list
 from orchestrator.v1.users.dependencies import (
     add_user,
     delete_user,
@@ -17,6 +17,16 @@ from orchestrator.v1.users.dependencies import (
 from orchestrator.v1.users.schemas import UserCreate, UserList, UserSingle
 
 user_router = APIRouter(prefix="/users", tags=["users"])
+
+
+@user_router.options(
+    "/",
+    summary="List available endpoints for this resource",
+    description="List available endpoints for this resource in the 'Allow' header.",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def available_methods(response: Response) -> None:
+    add_allow_header_to_resp(user_router, response)
 
 
 @user_router.post(
@@ -60,14 +70,11 @@ def retrieve_users(
 
 @user_router.head(
     "/{user_id}",
+    response_model=None,
     responses={status.HTTP_404_NOT_FOUND: {"model": None}},
     summary="Check user'sub exists",
     description="Check if a user's subject, for this issuer, already exists in the DB",
 )
-def check_user_existence(user: Annotated[UserSingle | str, Depends(get_user)]) -> None:
-    pass
-
-
 @user_router.get(
     "/{user_id}",
     responses={status.HTTP_404_NOT_FOUND: {"model": ErrorMessage}},

@@ -2,7 +2,9 @@
 
 from typing import Any
 
+from fastapi import APIRouter, Response
 from fastapi.datastructures import URL
+from fastapi.routing import APIRoute
 
 from orchestrator.common.schemas import (
     PageNavigation,
@@ -54,3 +56,17 @@ def get_paginated_list(
         tot_pages=page.total_pages,
     )
     return {"links": navigation, "page": page, "data": filtered_items}
+
+
+def add_allow_header_to_resp(router: APIRouter, response: Response) -> Response:
+    """Add the 'Allow' header to the response.
+
+    This header contains the available methods for the specified rosource. Used mainly
+    in the OPTIONS method.
+    """
+    allowed_methods: set[str] = set()
+    for route in router.routes:
+        if isinstance(route, APIRoute):
+            allowed_methods.update(route.methods)
+    response.headers["Allow"] = ", ".join(allowed_methods)
+    return response

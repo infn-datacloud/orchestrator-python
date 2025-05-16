@@ -4,6 +4,7 @@ import urllib.parse
 from functools import lru_cache
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from orchestrator.config import API_V1_STR, Settings
 from orchestrator.v1.router import router as router_v1
@@ -43,6 +44,13 @@ app = FastAPI(
     summary=summary,
     title=settings.PROJECT_NAME,
     version=version,
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 sub_app_v1 = FastAPI(

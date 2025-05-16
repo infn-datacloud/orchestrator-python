@@ -1,7 +1,7 @@
 """Module with the configuration parameters."""
 
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import AnyHttpUrl, EmailStr, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -68,6 +68,13 @@ class Settings(BaseSettings):
             default_factory=list,
             description="List of administrator's emails. "
             "To use when AUTHZ_MODE is 'email'",
+        ),
+    ]
+    BACKEND_CORS_ORIGINS: Annotated[
+        list[AnyHttpUrl | Literal["*"]],
+        Field(
+            default=["http://localhost:3000/"],
+            description="JSON-formatted list of allowed origins",
         ),
     ]
 

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from orchestrator.v1.users import user_router
+from orchestrator.v1.users.endpoints import user_router
 
 router = APIRouter()
 router.include_router(user_router)

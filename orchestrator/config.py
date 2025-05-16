@@ -72,29 +72,3 @@ class Settings(BaseSettings):
     ]
 
     model_config = SettingsConfigDict(env_file=".env")
-
-    # ROOT_PATH: str | None = None
-
-    # ADMIN_EMAIL_LIST: list[EmailStr] = []
-
-    # DOC_V1_URL: Optional[AnyHttpUrl] = None
-
-    # @validator("DOC_V1_URL", pre=True)
-    # @classmethod
-    # def create_doc_url(cls, v: Optional[str], values: dict[str, Any]) -> str:
-    #     """Build URL for internal documentation."""
-    #     if v:
-    #         return v
-    #     protocol = "http"
-    #     root_path = values.get("ROOT_PATH", "/")
-    #     root_path = root_path[1:] if root_path is not None else ""
-    #     link = os.path.join(
-    #         values.get("DOMAIN"), root_path, values.get("API_V1_STR")[1:], "docs"
-    #     )
-    #     return f"{protocol}://{link}"
-
-    # # BACKEND_CORS_ORIGINS is a JSON-formatted list of origins
-    # # e.g: '["http://localhost", "http://localhost:4200",
-    # # "http://localhost:3000", "http://localhost:8080",
-    # # "http://local.dockertoolbox.tiangolo.com"]'
-    # # BACKEND_CORS_ORIGINS: list[AnyHttpUrl] = ["http://localhost:3000"]

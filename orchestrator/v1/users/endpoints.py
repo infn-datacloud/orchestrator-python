@@ -9,7 +9,7 @@ from orchestrator.common.exceptions import ConflictError
 from orchestrator.common.schemas import ErrorMessage, ItemID
 from orchestrator.common.utils import add_allow_header_to_resp, get_paginated_list
 from orchestrator.db import SessionDep
-from orchestrator.v1.users.dependencies import (
+from orchestrator.v1.users.crud import (
     add_user,
     delete_user,
     get_user,

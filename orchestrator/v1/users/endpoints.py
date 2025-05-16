@@ -41,7 +41,8 @@ def available_methods(response: Response) -> None:
 )
 def create_user(user: UserCreate, session: SessionDep) -> ItemID:
     try:
-        return add_user(session=session, user=user)
+        db_user = add_user(session=session, user=user)
+        return {"id": db_user.id}
     except ConflictError as e:
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
@@ -76,7 +77,7 @@ def retrieve_users(
 #     response_model=None,
 #     responses={status.HTTP_404_NOT_FOUND: {"model": None}},
 #     summary="Check user'sub exists",
-#     description="Check if a user's subject, for this issuer, already exists in the DB",
+#     description="Check if a user's subject, for this issuer, already exists in the DB"
 # )
 @user_router.get(
     "/{user_id}",

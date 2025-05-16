@@ -1,6 +1,7 @@
 """Module with the configuration parameters."""
 
 from enum import Enum
+from functools import lru_cache
 from typing import Annotated, Literal
 
 from pydantic import AnyHttpUrl, EmailStr, Field
@@ -48,6 +49,9 @@ class Settings(BaseSettings):
             description="DB URL. By default it use an in memory MySQL DB.",
         ),
     ]
+    DB_ECO: Annotated[
+        bool, Field(default=False, description="Eco messages exchanged with the DB")
+    ]
     TRUSTED_IDP_LIST: Annotated[
         list[AnyHttpUrl],
         Field(
@@ -79,3 +83,9 @@ class Settings(BaseSettings):
     ]
 
     model_config = SettingsConfigDict(env_file=".env")
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Retrieve cached settings."""
+    return Settings()

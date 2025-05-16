@@ -2,19 +2,20 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from orchestrator.common.exceptions import ConflictError
-from orchestrator.common.schemas import ErrorMessage, ItemID, PaginationQuery
+from orchestrator.common.schemas import ErrorMessage, ItemID
 from orchestrator.common.utils import add_allow_header_to_resp, get_paginated_list
+from orchestrator.db import SessionDep
 from orchestrator.v1.users.dependencies import (
     add_user,
     delete_user,
     get_user,
     get_users,
 )
-from orchestrator.v1.users.schemas import UserCreate, UserList, UserSingle
+from orchestrator.v1.users.schemas import User, UserCreate, UserList, UserQueryDep
 
 user_router = APIRouter(prefix="/users", tags=["users"])
 
@@ -38,10 +39,9 @@ def available_methods(response: Response) -> None:
     "error.",
     status_code=status.HTTP_201_CREATED,
 )
-def create_user(user: UserCreate) -> ItemID:
+def create_user(user: UserCreate, session: SessionDep) -> ItemID:
     try:
-        id = add_user(user)
-        return id
+        return add_user(session=session, user=user)
     except ConflictError as e:
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
@@ -53,28 +53,31 @@ def create_user(user: UserCreate) -> ItemID:
     "/", summary="Retrieve users", description="Retrieve a paginated list of users."
 )
 def retrieve_users(
-    request: Request, pagination: Annotated[PaginationQuery, Query()]
+    request: Request, params: UserQueryDep, session: SessionDep
 ) -> UserList:
     users, tot_items = get_users(
-        skip=pagination.page * pagination.size,
-        limit=pagination.size,
-        sort=pagination.sort,
+        session=session,
+        skip=(params.page - 1) * params.size,
+        limit=params.size,
+        sort=params.sort,
+        **params.model_dump(exclude={"page", "size", "sort"}),
     )
     return get_paginated_list(
         filtered_items=users,
         tot_items=tot_items,
         url=request.url,
-        pagination=pagination,
+        page=params.page,
+        size=params.size,
     )
 
 
-@user_router.head(
-    "/{user_id}",
-    response_model=None,
-    responses={status.HTTP_404_NOT_FOUND: {"model": None}},
-    summary="Check user'sub exists",
-    description="Check if a user's subject, for this issuer, already exists in the DB",
-)
+# @user_router.head(
+#     "/{user_id}",
+#     response_model=None,
+#     responses={status.HTTP_404_NOT_FOUND: {"model": None}},
+#     summary="Check user'sub exists",
+#     description="Check if a user's subject, for this issuer, already exists in the DB",
+# )
 @user_router.get(
     "/{user_id}",
     responses={status.HTTP_404_NOT_FOUND: {"model": ErrorMessage}},
@@ -84,8 +87,8 @@ def retrieve_users(
     "error.",
 )
 def retrieve_user(
-    user_id: str, user: Annotated[UserSingle | None, Depends(get_user)]
-) -> UserSingle:
+    user_id: str, user: Annotated[User | None, Depends(get_user)]
+) -> User:
     if user is None:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -103,5 +106,5 @@ def retrieve_user(
     description="Delete a user with the given subject, for this issuer, from the DB.",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-def remove_user(user_id: str) -> None:
-    delete_user(user_id)
+def remove_user(user_id: str, session: SessionDep) -> None:
+    delete_user(session=session, user_id=user_id)

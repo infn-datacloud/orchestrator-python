@@ -6,11 +6,7 @@ from fastapi import APIRouter, Response
 from fastapi.datastructures import URL
 from fastapi.routing import APIRoute
 
-from orchestrator.common.schemas import (
-    PageNavigation,
-    PaginationQuery,
-    PaginationResponse,
-)
+from orchestrator.common.schemas import PageNavigation, PaginationResponse
 
 
 def get_page_navigation(
@@ -39,23 +35,21 @@ def get_page_navigation(
 
 
 def get_paginated_list(
-    *, filtered_items: list[Any], tot_items: int, url: URL, pagination: PaginationQuery
+    *, filtered_items: list[Any], tot_items: int, url: URL, page: int, size: int
 ) -> dict[str, Any]:
     """Retrieve a dict with navigation, pagination and data details.
 
     This dict will be converted to the paginated model returned by a specific endpoint.
     """
-    page = PaginationResponse(
-        number=pagination.page, size=pagination.size, total_elements=tot_items
-    )
+    pagination = PaginationResponse(number=page, size=size, total_elements=tot_items)
     url = url.replace(query="")
     navigation = get_page_navigation(
         url=url,
-        size=page.size,
-        curr_page=page.number,
-        tot_pages=page.total_pages,
+        size=pagination.size,
+        curr_page=pagination.number,
+        tot_pages=pagination.total_pages,
     )
-    return {"links": navigation, "page": page, "data": filtered_items}
+    return {"links": navigation, "page": pagination, "data": filtered_items}
 
 
 def add_allow_header_to_resp(router: APIRouter, response: Response) -> Response:

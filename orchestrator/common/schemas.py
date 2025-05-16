@@ -3,23 +3,41 @@
 import math
 from typing import Annotated
 
-from pydantic import AnyHttpUrl, BaseModel, Field, computed_field
+from pydantic import AnyHttpUrl, computed_field
+from sqlmodel import Field, SQLModel, String, TypeDecorator
+
+MAX_LEN = 2083
 
 
-class ErrorMessage(BaseModel):
+class HttpUrlType(TypeDecorator):
+    impl = String(MAX_LEN)
+    cache_ok = True
+    python_type = AnyHttpUrl
+
+    def process_bind_param(self, value, dialect) -> str:
+        return str(value)
+
+    def process_result_value(self, value, dialect) -> AnyHttpUrl:
+        return AnyHttpUrl(url=value)
+
+    def process_literal_param(self, value, dialect) -> str:
+        return str(value)
+
+
+class ItemID(SQLModel):
+    """Model usually returned by POST operation with only the item ID."""
+
+    id: Annotated[int, Field(description="Item unique ID in the DB", primary_key=True)]
+
+
+class ErrorMessage(SQLModel):
     """Model returned when raising an HTTP exception such as 404."""
 
     title: Annotated[str, Field(description="Error title")]
     message: Annotated[str, Field(description="Error detailed description")]
 
 
-class ItemID(BaseModel):
-    """Model usually returned by POST operation with only the item ID."""
-
-    id: Annotated[str, Field(description="Item unique ID in the DB")]
-
-
-class PaginationQuery(BaseModel):
+class PaginationQuery(SQLModel):
     """Model to filter lists in GET operations with multiple items."""
 
     size: Annotated[int, Field(default=5, ge=1, description="Chunk size.")]
@@ -36,7 +54,7 @@ class PaginationQuery(BaseModel):
     ]
 
 
-class PaginationResponse(BaseModel):
+class PaginationResponse(SQLModel):
     """With pagination details and total elements count."""
 
     size: Annotated[int, Field(default=5, ge=1, description="Chunk size.")]
@@ -51,7 +69,7 @@ class PaginationResponse(BaseModel):
         return math.ceil(self.total_elements / self.size)
 
 
-class PageNavigation(BaseModel):
+class PageNavigation(SQLModel):
     """Model with the navigation links to use to navigate through a paginated list."""
 
     first: Annotated[AnyHttpUrl, Field(description="Link to the first page")]
@@ -64,7 +82,7 @@ class PageNavigation(BaseModel):
     last: Annotated[AnyHttpUrl, Field(description="Link to the last page")]
 
 
-class PaginatedList(BaseModel):
+class PaginatedList(SQLModel):
     """Model with the pagination details and navigation links."""
 
     links: Annotated[

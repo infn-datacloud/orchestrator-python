@@ -1,22 +1,23 @@
 """Entry point for the Federation-Registry web app."""
 
 import urllib.parse
-from functools import lru_cache
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from orchestrator.config import API_V1_STR, Settings
+from orchestrator.config import API_V1_STR, get_settings
+from orchestrator.db import create_db_and_tables
 from orchestrator.v1.router import router as router_v1
 
-
-@lru_cache
-def get_settings() -> Settings:
-    """Retrieve cached settings."""
-    return Settings()
-
-
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()
+    yield
+
 
 summary = "Orchestrator REST API of the DataCloud project"
 description = "The Orchestrator component stores users' deployments details."
@@ -44,6 +45,7 @@ app = FastAPI(
     summary=summary,
     title=settings.PROJECT_NAME,
     version=version,
+    lifespan=lifespan
 )
 app.add_middleware(
     CORSMiddleware,

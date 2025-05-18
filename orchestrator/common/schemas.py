@@ -95,7 +95,12 @@ class Pagination(SQLModel):
     @computed_field
     @property
     def total_pages(self) -> int:
-        return math.ceil(self.total_elements / self.size)
+        """Return the ceiling value of tot_items/page size.
+
+        If there are no elements, there is still one page but with no items.
+        """
+        val = math.ceil(self.total_elements / self.size)
+        return 1 if val == 0 else val
 
 
 class PageNavigation(SQLModel):

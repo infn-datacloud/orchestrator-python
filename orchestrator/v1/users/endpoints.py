@@ -40,11 +40,16 @@ def available_methods(response: Response) -> None:
     "error.",
     status_code=status.HTTP_201_CREATED,
 )
-def create_user(user: UserCreate, session: SessionDep) -> ItemID:
+def create_user(request: Request, user: UserCreate, session: SessionDep) -> ItemID:
     try:
+        request.state.logger.info(
+            "Creating user with params: %s", user.model_dump(exclude_none=True)
+        )
         db_user = add_user(session=session, user=user)
+        request.state.logger.info("User created: %s", db_user)
         return {"id": db_user.id}
     except ConflictError as e:
+        request.state.logger.error(e.message)
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
             content={"title": "User already exists", "message": e.message},
@@ -57,6 +62,9 @@ def create_user(user: UserCreate, session: SessionDep) -> ItemID:
 def retrieve_users(
     request: Request, params: UserQueryDep, session: SessionDep
 ) -> UserList:
+    request.state.logger.info(
+        "Retrieve users. Query params: %s", params.model_dump(exclude_none=True)
+    )
     users, tot_items = get_users(
         session=session,
         skip=(params.page - 1) * params.size,
@@ -64,6 +72,7 @@ def retrieve_users(
         sort=params.sort,
         **params.model_dump(exclude={"page", "size", "sort"}, exclude_none=True),
     )
+    request.state.logger.info("%d retrieved users: %s", tot_items, users)
     return get_paginated_list(
         filtered_items=users,
         tot_items=tot_items,
@@ -93,14 +102,15 @@ def retrieve_user(
     user_id: uuid.UUID,
     user: Annotated[User | None, Depends(get_user)],
 ) -> User:
+    request.state.logger.info("Retrieve user with ID '%s'", str(user_id))
     if user is None:
+        message = f"User with sub '{user_id!s}' does not exist"
+        request.state.logger.error(message)
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
-            content={
-                "title": "User not found",
-                "message": f"User with sub '{user_id}' does not exist",
-            },
+            content={"title": "User not found", "message": message},
         )
+    request.state.logger.info("User with ID '%s' found: %s", str(user_id), user)
     return user
 
 
@@ -111,5 +121,6 @@ def retrieve_user(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 def remove_user(request: Request, user_id: uuid.UUID, session: SessionDep) -> None:
-def remove_user(user_id: str, session: SessionDep) -> None:
+    request.state.logger.info("Delete user with ID '%s'", str(user_id))
     delete_user(session=session, user_id=user_id)
+    request.state.logger.info("User with ID '%s' deleted", str(user_id))

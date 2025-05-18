@@ -3,6 +3,7 @@
 from typing import Annotated
 
 from fastapi import Depends
+from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine
 
 from orchestrator.config import get_settings
@@ -16,8 +17,9 @@ else:
 engine = create_engine(settings.DB_URL, connect_args=connect_args, echo=settings.DB_ECO)
 
 
-def create_db_and_tables():
+def create_db_and_tables() -> Engine:
     SQLModel.metadata.create_all(engine)
+    return engine
 
 
 def get_session():

@@ -8,16 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from orchestrator.config import API_V1_STR, get_settings
 from orchestrator.db import create_db_and_tables
+from orchestrator.logger import get_logger
 from orchestrator.v1.router import router as router_v1
 
 settings = get_settings()
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    create_db_and_tables()
-    yield
-
 
 summary = "Orchestrator REST API of the DataCloud project"
 description = "The Orchestrator component stores users' deployments details."
@@ -38,6 +32,22 @@ tags_metadata = [
     },
 ]
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """App Context Manager.
+
+    Create logger and make it available in the requests' state. Connect and disconnect
+    from DB.
+    """
+    logger = get_logger(settings)
+    logger.info("Connecting to database '%s' and generating tables", settings.DB_URL)
+    engine = create_db_and_tables()
+    yield {"logger": logger}
+    logger.info("Disconnecting from database")
+    engine.dispose()
+
+
 app = FastAPI(
     contact=contact,
     description=description,
@@ -45,7 +55,7 @@ app = FastAPI(
     summary=summary,
     title=settings.PROJECT_NAME,
     version=version,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 app.add_middleware(
     CORSMiddleware,

@@ -1,10 +1,11 @@
 """Module with the configuration parameters."""
 
+import logging
 from enum import Enum
 from functools import lru_cache
 from typing import Annotated, Literal
 
-from pydantic import AnyHttpUrl, EmailStr, Field
+from pydantic import AnyHttpUrl, BeforeValidator, EmailStr, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 API_V1_STR = "/api/v1/"
@@ -13,6 +14,18 @@ API_V1_STR = "/api/v1/"
 class AuthorizationMethodsEnum(str, Enum):
     email = "email"
     opa = "opa"
+
+
+class LogLevel(int, Enum):
+    DEBUG = logging.DEBUG
+    INFO = logging.INFO
+    WARNING = logging.WARNING
+    ERROR = logging.ERROR
+    CRITICAL = logging.CRITICAL
+
+
+def get_level(value: str) -> int:
+    return LogLevel.__getitem__(value.upper())
 
 
 class Settings(BaseSettings):
@@ -51,6 +64,11 @@ class Settings(BaseSettings):
     ]
     DB_ECO: Annotated[
         bool, Field(default=False, description="Eco messages exchanged with the DB")
+    ]
+    LOG_LEVEL: Annotated[
+        LogLevel,
+        Field(default=LogLevel.INFO, description="Logs level"),
+        BeforeValidator(get_level),
     ]
     TRUSTED_IDP_LIST: Annotated[
         list[AnyHttpUrl],

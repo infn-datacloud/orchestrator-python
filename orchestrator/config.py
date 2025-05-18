@@ -99,6 +99,20 @@ class Settings(BaseSettings):
             description="JSON-formatted list of allowed origins",
         ),
     ]
+    KAFKA_SERVERS: Annotated[
+        str,
+        Field(
+            default="localhost:9092",
+            description="Comma separated list of Kafka servers",
+        ),
+    ]
+    KAFKA_NEW_DEP_TOPIC: Annotated[
+        str,
+        Field(
+            default="new_deployment_request",
+            description="Name of the topic storing new deployment requests",
+        ),
+    ]
 
     model_config = SettingsConfigDict(env_file=".env")
 

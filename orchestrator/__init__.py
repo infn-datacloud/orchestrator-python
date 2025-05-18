@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from orchestrator.config import API_V1_STR, get_settings
-from orchestrator.db import create_db_and_tables
+from orchestrator.db import create_db_and_tables, dispose_engine
 from orchestrator.logger import get_logger
 from orchestrator.v1.router import router as router_v1
 
@@ -41,11 +41,11 @@ async def lifespan(app: FastAPI):
     from DB.
     """
     logger = get_logger(settings)
-    logger.info("Connecting to database '%s' and generating tables", settings.DB_URL)
-    engine = create_db_and_tables()
+    create_db_and_tables(logger)
+    kafka_task = await start_kafka_listener(settings, logger)
     yield {"logger": logger}
-    logger.info("Disconnecting from database")
-    engine.dispose()
+    await stop_kafka_listener(kafka_task, logger)
+    dispose_engine(logger)
 
 
 app = FastAPI(

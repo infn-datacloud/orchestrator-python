@@ -1,31 +1,18 @@
 """Common pydantic schemas."""
 
 import math
+from datetime import datetime
 from typing import Annotated
 
 from pydantic import AnyHttpUrl, computed_field
-from sqlmodel import Field, SQLModel, String, TypeDecorator
-
-MAX_LEN = 2083
-
-
-class HttpUrlType(TypeDecorator):
-    impl = String(MAX_LEN)
-    cache_ok = True
-    python_type = AnyHttpUrl
-
-    def process_bind_param(self, value, dialect) -> str:
-        return str(value)
-
-    def process_result_value(self, value, dialect) -> AnyHttpUrl:
-        return AnyHttpUrl(url=value)
-
-    def process_literal_param(self, value, dialect) -> str:
-        return str(value)
+from sqlmodel import Field, SQLModel
 
 
 class ItemID(SQLModel):
-    """Model usually returned by POST operation with only the item ID."""
+    """Model usually returned by POST operation with only the item ID.
+
+    All DB entities must inherit from this entity.
+    """
 
     id: Annotated[int, Field(description="Item unique ID in the DB", primary_key=True)]
 
@@ -35,6 +22,48 @@ class ErrorMessage(SQLModel):
 
     title: Annotated[str, Field(description="Error title")]
     message: Annotated[str, Field(description="Error detailed description")]
+
+
+class CreationQuery(SQLModel):
+    """Schema used to define request's body parameters."""
+
+    created_before: Annotated[
+        datetime | None,
+        Field(
+            default=None,
+            description="Item's creation time must be lower than or equal to this "
+            "value",
+        ),
+    ]
+    created_after: Annotated[
+        datetime | None,
+        Field(
+            default=None,
+            description="Item's creation time must be greater than or equal to this "
+            "value",
+        ),
+    ]
+
+
+class UpdateQuery(SQLModel):
+    """Schema used to define request's body parameters."""
+
+    updated_before: Annotated[
+        datetime | None,
+        Field(
+            default=None,
+            description="Item's creation time must be lower than or equal to this "
+            "value",
+        ),
+    ]
+    updated_after: Annotated[
+        datetime | None,
+        Field(
+            default=None,
+            description="Item's creation time must be greater than or equal to this "
+            "value",
+        ),
+    ]
 
 
 class PaginationQuery(SQLModel):
@@ -54,7 +83,7 @@ class PaginationQuery(SQLModel):
     ]
 
 
-class PaginationResponse(SQLModel):
+class Pagination(SQLModel):
     """With pagination details and total elements count."""
 
     size: Annotated[int, Field(default=5, ge=1, description="Chunk size.")]
@@ -83,10 +112,13 @@ class PageNavigation(SQLModel):
 
 
 class PaginatedList(SQLModel):
-    """Model with the pagination details and navigation links."""
+    """Model with the pagination details and navigation links.
+
+    Models with lists returned by GET operations MUST inherit from this model.
+    """
 
     links: Annotated[
         PageNavigation,
         Field(description="Links useful to navigate toward other pages"),
     ]
-    page: Annotated[PaginationResponse, Field(description="Page details")]
+    page: Annotated[Pagination, Field(description="Page details")]

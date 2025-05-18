@@ -61,7 +61,7 @@ def retrieve_users(
         skip=(params.page - 1) * params.size,
         limit=params.size,
         sort=params.sort,
-        **params.model_dump(exclude={"page", "size", "sort"}),
+        **params.model_dump(exclude={"page", "size", "sort"}, exclude_none=True),
     )
     return get_paginated_list(
         filtered_items=users,

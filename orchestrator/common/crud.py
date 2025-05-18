@@ -11,6 +11,30 @@ Entity = TypeVar("Entity", bound=ItemID)
 CreateModel = TypeVar("CreateModel", bound=SQLModel)
 
 
+def get_conditions(*, entity: type[Entity], **kwargs) -> list:
+    """Build the conditions list used to filter out items in the query."""
+    conditions = []
+    for k, v in kwargs.items():
+        if k == "created_before":
+            conditions.append(entity.created_at <= v)
+        elif k == "updated_before":
+            conditions.append(entity.updated_at <= v)
+        elif k == "created_after":
+            conditions.append(entity.created_at >= v)
+        elif k == "updated_after":
+            conditions.append(entity.updated_at >= v)
+        elif isinstance(v, str):
+            conditions.append(entity.__table__.c.get(k).icontains(v))
+        elif isinstance(v, (int, float)):
+            if k.endswith("_lte"):
+                conditions.append(entity.__table__.c.get(k) <= v)
+            elif k.endswith("_gte"):
+                conditions.append(entity.__table__.c.get(k) >= v)
+            else:
+                conditions.append(entity.__table__.c.get(k) == v)
+    return conditions
+
+
 def get_item(*, entity: type[Entity], session: Session, item_id: str) -> Entity | None:
     """Dependency to search a item with the given item_id in the DB."""
     statement = select(entity).where(entity.id == item_id)
@@ -35,10 +59,7 @@ def get_items(
     else:
         key = entity.__getattribute__(sort)
 
-    conditions = []
-    for k, v in kwargs.items():
-        if v is not None:
-            conditions.append(entity.__table__.c.get(k) == v)
+    conditions = get_conditions(entity=entity, **kwargs)
 
     statement = (
         select(entity)
@@ -49,7 +70,7 @@ def get_items(
     )
     items = session.exec(statement).all()
 
-    statement = select(func.count(entity.id))
+    statement = select(func.count(entity.id)).filter(sqlalchemy.and_(*conditions))
     tot_items = session.exec(statement).first()
 
     return items, tot_items

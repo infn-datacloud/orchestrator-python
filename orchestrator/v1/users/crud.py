@@ -11,14 +11,14 @@ from orchestrator.v1.users.schemas import User, UserCreate
 
 
 def get_user(user_id: str, session: SessionDep) -> User | None:
-    """Dependency to search a user with the given user_id in the DB."""
+    """Search a user with the given user_id in the DB."""
     return get_item(session=session, entity=User, item_id=user_id)
 
 
 def get_users(
     *, session: Session, skip: int, limit: int, sort: str, **kwargs
 ) -> tuple[list[User], int]:
-    """Dependency to search a user with the given user_id in the DB.
+    """Search a user with the given user_id in the DB.
 
     Apply sorting and narrowing on the search. Return also the total count of users.
     """
@@ -28,7 +28,7 @@ def get_users(
 
 
 def add_user(*, session: Session, user: UserCreate) -> ItemID:
-    """Dependecy to add a user to the DB.
+    """Add a user to the DB.
 
     Do not check before hand if user already exists. The function lets the DB query to
     raise an error and then it catches it."""
@@ -43,5 +43,5 @@ def add_user(*, session: Session, user: UserCreate) -> ItemID:
 
 
 def delete_user(*, session: Session, user_id: int) -> None:
-    """Dependency to delete a user with the given user_id from the DB."""
+    """Delete a user with the given user_id from the DB."""
     delete_item(session=session, entity=User, item_id=user_id)

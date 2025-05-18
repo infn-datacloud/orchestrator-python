@@ -6,7 +6,7 @@ from fastapi import APIRouter, Response
 from fastapi.datastructures import URL
 from fastapi.routing import APIRoute
 
-from orchestrator.common.schemas import PageNavigation, PaginationResponse
+from orchestrator.common.schemas import PageNavigation, Pagination
 
 
 def get_page_navigation(
@@ -41,7 +41,7 @@ def get_paginated_list(
 
     This dict will be converted to the paginated model returned by a specific endpoint.
     """
-    pagination = PaginationResponse(number=page, size=size, total_elements=tot_items)
+    pagination = Pagination(number=page, size=size, total_elements=tot_items)
     url = url.replace(query="")
     navigation = get_page_navigation(
         url=url,

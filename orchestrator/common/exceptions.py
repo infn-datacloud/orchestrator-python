@@ -7,11 +7,3 @@ class ConflictError(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
-
-
-class ItemNotFoundError(Exception):
-    """Exception raised when the target item was not foudn in the DB."""
-
-    def __init__(self, message):
-        self.message = message
-        super().__init__(self.message)

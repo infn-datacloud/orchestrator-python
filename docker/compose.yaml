@@ -1,0 +1,40 @@
+services:
+  orchestrator:
+    image: orchestrator-python
+    container_name: orchestrator
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - 8000:80
+    environment:
+      DB_URL: mysql+pymysql://orchestrator:changeit@orchestrator-db:3306/orchestrator
+    networks:
+      - orchestrator-net
+
+  db:
+    image: mysql:8
+    container_name: orchestrator-db
+    restart: unless-stopped
+    ports:
+      - 3306:3306
+    volumes:
+      - db-data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: changeit
+      MYSQL_DATABASE: orchestrator
+      MYSQL_USER: orchestrator
+      MYSQL_PASSWORD: changeit
+    networks:
+      - orchestrator-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-changeit}", "--silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 50
+    
+networks:
+  orchestrator-net:
+
+volumes:
+  db-data:

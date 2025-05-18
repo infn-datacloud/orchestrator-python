@@ -3,7 +3,7 @@
 from pydantic import AnyHttpUrl
 from sqlmodel import String, TypeDecorator
 
-MAX_LEN = 2083
+MAX_LEN = 255
 
 
 class HttpUrlType(TypeDecorator):

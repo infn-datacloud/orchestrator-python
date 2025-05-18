@@ -1,5 +1,6 @@
 """Endpoints to manage User details."""
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response, status
@@ -88,7 +89,9 @@ def retrieve_users(
     "error.",
 )
 def retrieve_user(
-    user_id: str, user: Annotated[User | None, Depends(get_user)]
+    request: Request,
+    user_id: uuid.UUID,
+    user: Annotated[User | None, Depends(get_user)],
 ) -> User:
     if user is None:
         return JSONResponse(
@@ -107,5 +110,6 @@ def retrieve_user(
     description="Delete a user with the given subject, for this issuer, from the DB.",
     status_code=status.HTTP_204_NO_CONTENT,
 )
+def remove_user(request: Request, user_id: uuid.UUID, session: SessionDep) -> None:
 def remove_user(user_id: str, session: SessionDep) -> None:
     delete_user(session=session, user_id=user_id)

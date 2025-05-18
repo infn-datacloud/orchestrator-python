@@ -1,5 +1,7 @@
 """Users' utility functions."""
 
+import uuid
+
 import sqlalchemy
 from sqlmodel import Session
 
@@ -10,7 +12,7 @@ from orchestrator.db import SessionDep
 from orchestrator.v1.users.schemas import User, UserCreate
 
 
-def get_user(user_id: str, session: SessionDep) -> User | None:
+def get_user(user_id: uuid.UUID, session: SessionDep) -> User | None:
     """Search a user with the given user_id in the DB."""
     return get_item(session=session, entity=User, item_id=user_id)
 
@@ -42,6 +44,6 @@ def add_user(*, session: Session, user: UserCreate) -> ItemID:
             ) from e
 
 
-def delete_user(*, session: Session, user_id: int) -> None:
+def delete_user(*, session: Session, user_id: uuid.UUID) -> None:
     """Delete a user with the given user_id from the DB."""
     delete_item(session=session, entity=User, item_id=user_id)

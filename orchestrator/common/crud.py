@@ -1,5 +1,6 @@
 """Create Read Update and Delete generic functions."""
 
+import uuid
 from typing import TypeVar
 
 import sqlalchemy
@@ -11,7 +12,9 @@ Entity = TypeVar("Entity", bound=ItemID)
 CreateModel = TypeVar("CreateModel", bound=SQLModel)
 
 
-def get_conditions(*, entity: type[Entity], **kwargs) -> list:
+def get_conditions(
+    *, entity: type[Entity], **kwargs
+) -> list[sqlalchemy.BinaryExpression]:
     """Build the conditions list used to filter out items in the query."""
     conditions = []
     for k, v in kwargs.items():
@@ -35,7 +38,9 @@ def get_conditions(*, entity: type[Entity], **kwargs) -> list:
     return conditions
 
 
-def get_item(*, entity: type[Entity], session: Session, item_id: str) -> Entity | None:
+def get_item(
+    *, entity: type[Entity], session: Session, item_id: uuid.UUID
+) -> Entity | None:
     """Dependency to search a item with the given item_id in the DB."""
     statement = select(entity).where(entity.id == item_id)
     return session.exec(statement).first()
@@ -87,7 +92,7 @@ def add_item(*, entity: type[Entity], session: Session, item: CreateModel) -> En
     return db_item
 
 
-def delete_item(*, entity: type[Entity], session: Session, item_id: int) -> None:
+def delete_item(*, entity: type[Entity], session: Session, item_id: uuid.UUID) -> None:
     """Dependency to delete a item with the given item_id from the DB."""
     statement = delete(entity).where(entity.id == item_id)
     session.exec(statement)

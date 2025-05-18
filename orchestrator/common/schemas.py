@@ -1,6 +1,7 @@
 """Common pydantic schemas."""
 
 import math
+import uuid
 from datetime import datetime
 from typing import Annotated
 
@@ -14,7 +15,14 @@ class ItemID(SQLModel):
     All DB entities must inherit from this entity.
     """
 
-    id: Annotated[int, Field(description="Item unique ID in the DB", primary_key=True)]
+    id: Annotated[
+        uuid.UUID,
+        Field(
+            default_factory=uuid.uuid4,
+            description="Item unique ID in the DB",
+            primary_key=True,
+        ),
+    ]
 
 
 class ErrorMessage(SQLModel):

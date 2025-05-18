@@ -24,9 +24,10 @@ class LogLevel(int, Enum):
     CRITICAL = logging.CRITICAL
 
 
-def get_level(value: str) -> int:
-    return LogLevel.__getitem__(value.upper())
-
+def get_level(value: int | str | LogLevel) -> int:
+    if isinstance(value, str):
+        return LogLevel.__getitem__(value.upper())
+    return value
 
 class Settings(BaseSettings):
     """Model with the app settings."""

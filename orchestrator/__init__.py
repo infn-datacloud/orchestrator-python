@@ -42,9 +42,7 @@ async def lifespan(app: FastAPI):
     """
     logger = get_logger(settings)
     create_db_and_tables(logger)
-    kafka_task = await start_kafka_listener(settings, logger)
     yield {"logger": logger}
-    await stop_kafka_listener(kafka_task, logger)
     dispose_engine(logger)
 
 

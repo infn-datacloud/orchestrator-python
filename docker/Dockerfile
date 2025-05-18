@@ -16,7 +16,7 @@ RUN poetry export \
 
 
 # Stage used in production with no kubernetes
-FROM tiangolo/uvicorn-gunicorn-fastapi:python${PYTHON_VERSION}-slim AS production
+FROM python:${PYTHON_VERSION}-slim AS production
 
 # Updating packages and installing libraries
 RUN apt-get update \
@@ -24,14 +24,13 @@ RUN apt-get update \
 
 WORKDIR /app/
 
-COPY --from=requirements /tmp/requirements.txt /app/requirements.txt
-
 # Upgrade pip and install requirements
-RUN pip install --user --upgrade pip \
-    && pip install --user --no-cache-dir --upgrade -r /app/requirements.txt
+COPY --from=requirements /tmp/requirements.txt /app/requirements.txt
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir --upgrade -r /app/requirements.txt
 
-ENV PYTHONPATH="${PYTHONPATH}:/app"
-ENV APP_MODULE=main:app
-
+# Copy the application code
 COPY ./orchestrator /app/orchestrator
 COPY ./main.py /app/main.py
+
+CMD ["fastapi", "run", "/app/main.py", "--port", "80"]

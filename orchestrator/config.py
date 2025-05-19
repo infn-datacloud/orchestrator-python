@@ -5,6 +5,7 @@ from enum import Enum
 from functools import lru_cache
 from typing import Annotated, Literal
 
+from fastapi import Depends
 from pydantic import AnyHttpUrl, BeforeValidator, EmailStr, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -16,7 +17,7 @@ class AuthorizationMethodsEnum(str, Enum):
     opa = "opa"
 
 
-class LogLevel(int, Enum):
+class LogLevelEnum(int, Enum):
     DEBUG = logging.DEBUG
     INFO = logging.INFO
     WARNING = logging.WARNING
@@ -24,10 +25,11 @@ class LogLevel(int, Enum):
     CRITICAL = logging.CRITICAL
 
 
-def get_level(value: int | str | LogLevel) -> int:
+def get_level(value: int | str | LogLevelEnum) -> int:
     if isinstance(value, str):
-        return LogLevel.__getitem__(value.upper())
+        return LogLevelEnum.__getitem__(value.upper())
     return value
+
 
 class Settings(BaseSettings):
     """Model with the app settings."""
@@ -63,12 +65,19 @@ class Settings(BaseSettings):
             description="DB URL. By default it use an in memory MySQL DB.",
         ),
     ]
+    OPA_AUTHZ_URL: Annotated[
+        AnyHttpUrl,
+        Field(
+            default="http://localhost:8181/v1/data/orchestrator",
+            description="Open Policy Agent service roles authorization URL",
+        ),
+    ]
     DB_ECO: Annotated[
         bool, Field(default=False, description="Eco messages exchanged with the DB")
     ]
     LOG_LEVEL: Annotated[
-        LogLevel,
-        Field(default=LogLevel.INFO, description="Logs level"),
+        LogLevelEnum,
+        Field(default=LogLevelEnum.INFO, description="Logs level"),
         BeforeValidator(get_level),
     ]
     TRUSTED_IDP_LIST: Annotated[
@@ -108,3 +117,6 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Retrieve cached settings."""
     return Settings()
+
+
+SettingsDep = Annotated[Settings, Depends(get_settings)]

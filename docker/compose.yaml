@@ -5,10 +5,12 @@ services:
     restart: unless-stopped
     depends_on:
       - db
+      - opa
     ports:
       - 8000:80
     environment:
       DB_URL: mysql+pymysql://orchestrator:changeit@orchestrator-db:3306/orchestrator
+      AUTHZ_MODE: opa 
     networks:
       - orchestrator-net
 
@@ -32,7 +34,16 @@ services:
       interval: 5s
       timeout: 5s
       retries: 50
-    
+
+  opa:
+    image: openpolicyagent/opa
+    container_name: opa
+    ports:
+      - 8181:8181
+    volumes:
+      - ../opa:/orchestrator:ro
+    command: run --server --log-level debug --addr 0.0.0.0:8181 /orchestrator
+
 networks:
   orchestrator-net:
 

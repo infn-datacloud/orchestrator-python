@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from orchestrator.auth import configure_auth
 from orchestrator.config import API_V1_STR, get_settings
 from orchestrator.db import create_db_and_tables, dispose_engine
 from orchestrator.logger import get_logger
@@ -41,6 +42,7 @@ async def lifespan(app: FastAPI):
     from DB.
     """
     logger = get_logger(settings)
+    configure_auth(settings)
     create_db_and_tables(logger)
     yield {"logger": logger}
     dispose_engine(logger)

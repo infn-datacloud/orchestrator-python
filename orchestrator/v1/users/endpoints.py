@@ -24,12 +24,24 @@ user_router = APIRouter(prefix="/users", tags=["users"])
     status_code=status.HTTP_204_NO_CONTENT,
 )
 def available_methods(response: Response) -> None:
+    """Add the HTTP 'Allow' header to the response.
+
+    Args:
+        response (Response): The HTTP response object to which the 'Allow' header will
+            be added.
+
+    Returns:
+        None
+
+    """
     add_allow_header_to_resp(user_router, response)
 
 
 @user_router.post(
     "/",
-    responses={status.HTTP_409_CONFLICT: {"model": ErrorMessage}},
+    responses={
+        status.HTTP_409_CONFLICT: {"model": ErrorMessage}
+    },  # TODO: Add 401, 403 and others? Standardize response model?
     summary="Create a new user",
     description="Add a new user to the DB. Check if a user's subject, for this issuer, "
     "already exists in the DB. If the sub already exists, the endpoint raises a 409 "
@@ -42,6 +54,21 @@ def create_user(
     user: UserCreate,
     session: SessionDep,
 ) -> ItemID:
+    """Create a new user in the system.
+
+    Logs the creation attempt and result. If the user already exists, returns a 409
+    Conflict response.
+
+    Args:
+        request (Request): The incoming HTTP request object, used for logging.
+        user (UserCreate): The user data to create.
+        session (SessionDep): The database session dependency.
+
+    Returns:
+        ItemID: A dictionary containing the ID of the created user on success.
+        JSONResponse: A 409 Conflict response if the user already exists.
+
+    """
     try:
         request.state.logger.info(
             "Creating user with params: %s", user.model_dump(exclude_none=True)
@@ -66,6 +93,22 @@ def create_user(
 def retrieve_users(
     request: Request, params: UserQueryDep, session: SessionDep
 ) -> UserList:
+    """Retrieve a paginated list of users based on query parameters.
+
+    Logs the query parameters and the number of users retrieved. Fetches users from the
+    database using pagination, sorting, and additional filters provided in the query
+    parameters. Returns the users in a paginated response format.
+
+    Args:
+        request (Request): The HTTP request object, used for logging and URL generation.
+        params (UserQueryDep): Dependency containing query parameters for filtering,
+            sorting, and pagination.
+        session (SessionDep): Database session dependency.
+
+    Returns:
+        UserList: A paginated list of users matching the query parameters.
+
+    """
     request.state.logger.info(
         "Retrieve users. Query params: %s", params.model_dump(exclude_none=True)
     )
@@ -107,6 +150,22 @@ def retrieve_user(
     user_id: uuid.UUID,
     user: Annotated[User | None, Depends(get_user)],
 ) -> User:
+    """Retrieve a user by their unique identifier.
+
+    Logs the retrieval attempt, checks if the user exists, and returns the user object
+    if found. If the user does not exist, logs an error and returns a JSON response with
+    a 404 status.
+
+    Args:
+        request (Request): The incoming HTTP request object.
+        user_id (uuid.UUID): The unique identifier of the user to retrieve.
+        user (User | None): The user object, if found, or None.
+
+    Returns:
+        User: The user object if found.
+        JSONResponse: A 404 response if the user does not exist.
+
+    """
     request.state.logger.info("Retrieve user with ID '%s'", str(user_id))
     if user is None:
         message = f"User with sub '{user_id!s}' does not exist"
@@ -127,6 +186,21 @@ def retrieve_user(
     dependencies=[Security(has_admin_access)],
 )
 def remove_user(request: Request, user_id: uuid.UUID, session: SessionDep) -> None:
+    """Remove a user from the system by their unique identifier.
+
+    Logs the deletion process and delegates the actual removal to the `delete_user`
+    function.
+
+    Args:
+        request (Request): The HTTP request object, used for logging and request context
+        user_id (uuid.UUID): The unique identifier of the user to be removed.
+        session (SessionDep): The database session dependency used to perform the
+            deletion.
+
+    Returns:
+        None
+
+    """
     request.state.logger.info("Delete user with ID '%s'", str(user_id))
     delete_user(session=session, user_id=user_id)
     request.state.logger.info("User with ID '%s' deleted", str(user_id))

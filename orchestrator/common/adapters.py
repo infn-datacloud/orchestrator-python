@@ -14,10 +14,40 @@ class HttpUrlType(TypeDecorator):
     python_type = AnyHttpUrl
 
     def process_bind_param(self, value, dialect) -> str:
+        """Convert the AnyHttpUrl value to a string before storing in the database.
+
+        Args:
+            value: The AnyHttpUrl value to be stored.
+            dialect: The database dialect in use.
+
+        Returns:
+            str: The string representation of the URL.
+
+        """
         return str(value)
 
     def process_result_value(self, value, dialect) -> AnyHttpUrl:
+        """Convert the string value from the database back to an AnyHttpUrl.
+
+        Args:
+            value: The string value retrieved from the database.
+            dialect: The database dialect in use.
+
+        Returns:
+            AnyHttpUrl: The reconstructed AnyHttpUrl object.
+
+        """
         return AnyHttpUrl(url=value)
 
     def process_literal_param(self, value, dialect) -> str:
+        """Convert the AnyHttpUrl value to a string for literal SQL statements.
+
+        Args:
+            value: The AnyHttpUrl value to be used in a literal SQL statement.
+            dialect: The database dialect in use.
+
+        Returns:
+            str: The string representation of the URL.
+
+        """
         return str(value)

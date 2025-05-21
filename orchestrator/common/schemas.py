@@ -116,10 +116,12 @@ class PageNavigation(SQLModel):
 
     first: Annotated[AnyHttpUrl, Field(description="Link to the first page")]
     prev: Annotated[
-        AnyHttpUrl | None, Field(description="Link to the previous page if available")
+        AnyHttpUrl | None,
+        Field(default=None, description="Link to the previous page if available"),
     ]
     next: Annotated[
-        AnyHttpUrl | None, Field(description="Link to the next page if available")
+        AnyHttpUrl | None,
+        Field(default=None, description="Link to the next page if available"),
     ]
     last: Annotated[AnyHttpUrl, Field(description="Link to the last page")]
 

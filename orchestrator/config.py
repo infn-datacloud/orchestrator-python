@@ -13,12 +13,16 @@ API_V1_STR = "/api/v1/"
 
 
 class AuthorizationMethodsEnum(str, Enum):
+    """Enumeration of supported authorization methods."""
+
     email = "email"
     groups = "groups"
     opa = "opa"
 
 
 class LogLevelEnum(int, Enum):
+    """Enumeration of supported logging levels."""
+
     DEBUG = logging.DEBUG
     INFO = logging.INFO
     WARNING = logging.WARNING
@@ -27,6 +31,15 @@ class LogLevelEnum(int, Enum):
 
 
 def get_level(value: int | str | LogLevelEnum) -> int:
+    """Convert a string, integer, or LogLevelEnum value to a logging level integer.
+
+    Args:
+        value: The log level as a string (case-insensitive), integer, or LogLevelEnum.
+
+    Returns:
+        int: The corresponding logging level integer.
+
+    """
     if isinstance(value, str):
         return LogLevelEnum.__getitem__(value.upper())
     return value
@@ -63,7 +76,7 @@ class Settings(BaseSettings):
         str,
         Field(
             default="sqlite+pysqlite:///:memory:",
-            description="DB URL. By default it use an in memory MySQL DB.",
+            description="DB URL. By default it use an in memory SQLite DB.",
         ),
     ]
     OPA_AUTHZ_URL: Annotated[
@@ -92,7 +105,8 @@ class Settings(BaseSettings):
         AuthorizationMethodsEnum,
         Field(
             default=AuthorizationMethodsEnum.email,
-            description="Authorization method to use. Allowed values: email, opa",
+            description="Authorization method to use. "
+            "Allowed values: email, groups, opa",
         ),
     ]
     ADMIN_EMAIL_LIST: Annotated[

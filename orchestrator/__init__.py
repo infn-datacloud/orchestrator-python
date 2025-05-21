@@ -36,10 +36,20 @@ tags_metadata = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """App Context Manager.
+    """FastAPI application lifespan context manager.
 
-    Create logger and make it available in the requests' state. Connect and disconnect
-    from DB.
+    This function is called at application startup and shutdown. It performs:
+    - Initializes the application logger and attaches it to the request state.
+    - Configures authentication/authorization (Flaat).
+    - Creates database tables if they do not exist.
+    - Cleans up resources and disposes the database engine on shutdown.
+
+    Args:
+        app: The FastAPI application instance.
+
+    Yields:
+        dict: A dictionary with the logger instance, available in the request state.
+
     """
     logger = get_logger(settings)
     configure_flaat(settings, logger)

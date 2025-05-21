@@ -21,7 +21,17 @@ flaat = Flaat()
 
 
 def configure_flaat(settings: Settings, logger: Logger) -> None:
-    """Configure flaat authentication, and OPA or flaat authorization."""
+    """Configure the Flaat authentication and authorization system for the application.
+
+    Sets trusted identity providers, request timeouts, and access levels based on the
+    application's authorization mode (email or groups). This function should be called
+    at application startup.
+
+    Args:
+        settings: The application settings instance.
+        logger: The logger instance for logging configuration details.
+
+    """
     logger.info("Set trusted IDPs: %s", settings.TRUSTED_IDP_LIST)
     logger.info("Authorization mode is %s", settings.AUTHZ_MODE.value)
     flaat.set_request_timeout(IDP_TIMEOUT)
@@ -51,7 +61,18 @@ HttpAuthzCredsDep = Annotated[HTTPAuthorizationCredentials, Security(security)]
 
 
 def check_authentication(authz_creds: HttpAuthzCredsDep) -> UserInfos:
-    """Verify that the token belongs to a trusted issuer"""
+    """Verify that the provided access token belongs to a trusted issuer.
+
+    Args:
+        authz_creds: HTTP authorization credentials extracted from the request.
+
+    Returns:
+        UserInfos: The user information extracted from the access token.
+
+    Raises:
+        HTTPException: If the token is not valid or not from a trusted issuer.
+
+    """
     try:
         return flaat.get_user_infos_from_access_token(authz_creds.credentials)
     except FlaatUnauthenticated as e:
@@ -66,7 +87,18 @@ AuthenticationDep = Annotated[UserInfos, Security(check_authentication)]
 def check_authorization(
     *, user_infos: UserInfos, access_level: str, settings: Settings, logger: Logger
 ) -> None:
-    """Check user permissions based on specified access level"""
+    """Check user permissions based on specified access level and authorization mode.
+
+    Args:
+        user_infos: The authenticated user information.
+        access_level: The required access level (e.g., 'is_user', 'is_admin').
+        settings: The application settings instance.
+        logger: The logger instance for logging authorization details.
+
+    Raises:
+        HTTPException: If the user does not have the required access level.
+
+    """
     if settings.AUTHZ_MODE == AuthorizationMethodsEnum.email:
         logger.info("Authorization through local configuration: check user's email")
         auth_workflow = AuthWorkflow(
@@ -85,7 +117,17 @@ def check_authorization(
 def has_user_access(
     request: Request, user_infos: AuthenticationDep, settings: SettingsDep
 ) -> None:
-    """Check user permissions"""
+    """Dependency to check if the current user has user-level access permissions.
+
+    Args:
+        request: The current FastAPI request object (provides logger in state).
+        user_infos: The authenticated user information.
+        settings: The application settings dependency.
+
+    Raises:
+        HTTPException: If the user does not have user-level access.
+
+    """
     check_authorization(
         user_infos=user_infos,
         access_level="is_user",
@@ -97,7 +139,17 @@ def has_user_access(
 def has_admin_access(
     request: Request, user_infos: AuthenticationDep, settings: SettingsDep
 ) -> None:
-    """Check admin permissions"""
+    """Dependency to check if the current user has admin-level access permissions.
+
+    Args:
+        request: The current FastAPI request object (provides logger in state).
+        user_infos: The authenticated user information.
+        settings: The application settings dependency.
+
+    Raises:
+        HTTPException: If the user does not have admin-level access.
+
+    """
     check_authorization(
         user_infos=user_infos,
         access_level="is_admin",

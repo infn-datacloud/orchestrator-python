@@ -1,4 +1,4 @@
-"""Utility functions"""
+"""Utility functions."""
 
 from typing import Any
 
@@ -12,11 +12,18 @@ from orchestrator.common.schemas import PageNavigation, Pagination
 def get_page_navigation(
     *, url: URL, size: int, curr_page: int, tot_pages: int
 ) -> PageNavigation:
-    """From the current URL build navigation links.
+    """Build navigation links for paginated API responses.
 
-    Strip current query parameters from the given URL. Detect previous and next page
-    from the current one. Knowing the total pages build the last page link."""
+    Args:
+        url: The base URL for navigation links.
+        size: The number of items per page.
+        curr_page: The current page number.
+        tot_pages: The total number of pages available.
 
+    Returns:
+        PageNavigation: An object containing first, previous, next, and last page links.
+
+    """
     first_page = url.include_query_params(page=1, size=size)._url
     if curr_page > 1:
         prev_page = url.include_query_params(page=curr_page - 1, size=size)._url
@@ -37,9 +44,19 @@ def get_page_navigation(
 def get_paginated_list(
     *, filtered_items: list[Any], tot_items: int, url: URL, page: int, size: int
 ) -> dict[str, Any]:
-    """Retrieve a dict with navigation, pagination and data details.
+    """Return a dictionary with navigation links, pagination info and the filtered data.
 
-    This dict will be converted to the paginated model returned by a specific endpoint.
+    Args:
+        filtered_items: The list of items for the current page.
+        tot_items: The total number of items matching the query.
+        url: The base URL for navigation links.
+        page: The current page number.
+        size: The number of items per page.
+
+    Returns:
+        dict: A dictionary with 'links', 'page', and 'data' keys for the paginated
+        response.
+
     """
     pagination = Pagination(number=page, size=size, total_elements=tot_items)
     url = url.replace(query="")
@@ -53,10 +70,15 @@ def get_paginated_list(
 
 
 def add_allow_header_to_resp(router: APIRouter, response: Response) -> Response:
-    """Add the 'Allow' header to the response.
+    """List in the 'Allow' header the available HTTP methods for the resource.
 
-    This header contains the available methods for the specified rosource. Used mainly
-    in the OPTIONS method.
+    Args:
+        router: The APIRouter instance containing route definitions.
+        response: The FastAPI Response object to modify.
+
+    Returns:
+        Response: The response object with the 'Allow' header set.
+
     """
     allowed_methods: set[str] = set()
     for route in router.routes:

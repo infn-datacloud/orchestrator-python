@@ -1,4 +1,4 @@
-"""Module with the V1 router architecture. Include all V1 endpoints"""
+"""Module with the V1 router architecture. Include all V1 endpoints."""
 
 from fastapi import APIRouter
 

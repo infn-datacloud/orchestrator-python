@@ -1,3 +1,5 @@
+"""Main entry point for the orchestrator application."""
+
 import uvicorn
 
 from orchestrator import app

@@ -15,7 +15,19 @@ CreateModel = TypeVar("CreateModel", bound=SQLModel)
 def get_conditions(
     *, entity: type[Entity], **kwargs
 ) -> list[sqlalchemy.BinaryExpression]:
-    """Build the conditions list used to filter out items in the query."""
+    """Build a list of SQLAlchemy filter conditions for querying items.
+
+    Args:
+        entity: The SQLModel entity class to filter.
+        **kwargs: Arbitrary filter parameters, such as field values or range conditions.
+            Recognized keys include 'created_before', 'created_after', 'updated_before',
+            'updated_after', and any field name (with optional _lte/_gte suffix for
+            range).
+
+    Returns:
+        List of SQLAlchemy binary expressions to be used in a query filter.
+
+    """
     conditions = []
     for k, v in kwargs.items():
         if k == "created_before":
@@ -41,7 +53,17 @@ def get_conditions(
 def get_item(
     *, entity: type[Entity], session: Session, item_id: uuid.UUID
 ) -> Entity | None:
-    """Dependency to search a item with the given item_id in the DB."""
+    """Retrieve a single item by its ID from the database.
+
+    Args:
+        entity: The SQLModel entity class to query.
+        session: The SQLModel session for database access.
+        item_id: The UUID of the item to retrieve.
+
+    Returns:
+        The entity instance if found, otherwise None.
+
+    """
     statement = select(entity).where(entity.id == item_id)
     return session.exec(statement).first()
 
@@ -55,9 +77,22 @@ def get_items(
     sort: str,
     **kwargs,
 ) -> tuple[list[Entity], int]:
-    """Dependency to search a item with the given item_id in the DB.
+    """Retrieve a paginated and sorted list of items, with total count, from the DB.
 
-    Apply sorting and narrowing on the search. Return also the total count of items.
+    The total count corresponds to the total count of returned values which may differs
+    from the showed users since they are paginated.
+
+    Args:
+        entity: The SQLModel entity class to query.
+        session: The SQLModel session for database access.
+        skip: Number of items to skip (for pagination).
+        limit: Maximum number of items to return.
+        sort: Field name to sort by (prefix with '-' for descending).
+        **kwargs: Additional filter parameters (see get_conditions).
+
+    Returns:
+        Tuple of (list of entity instances, total count of matching items).
+
     """
     if sort.startswith("-"):
         key = desc(entity.__table__.c.get(sort[1:]))
@@ -82,10 +117,17 @@ def get_items(
 
 
 def add_item(*, entity: type[Entity], session: Session, item: CreateModel) -> Entity:
-    """Dependecy to add a item to the DB.
+    """Add a new item to the database.
 
-    Do not check before hand if item already exists. The function lets the DB query to
-    raise an error and then it catches it."""
+    Args:
+        entity: The SQLModel entity class to add.
+        session: The SQLModel session for database access.
+        item: The Pydantic/SQLModel model instance to add.
+
+    Returns:
+        The newly created entity instance.
+
+    """
     db_item = entity(**item.model_dump())
     session.add(db_item)
     session.commit()
@@ -93,7 +135,14 @@ def add_item(*, entity: type[Entity], session: Session, item: CreateModel) -> En
 
 
 def delete_item(*, entity: type[Entity], session: Session, item_id: uuid.UUID) -> None:
-    """Dependency to delete a item with the given item_id from the DB."""
+    """Delete an item by its ID from the database.
+
+    Args:
+        entity: The SQLModel entity class to delete from.
+        session: The SQLModel session for database access.
+        item_id: The UUID of the item to delete.
+
+    """
     statement = delete(entity).where(entity.id == item_id)
     session.exec(statement)
     session.commit()

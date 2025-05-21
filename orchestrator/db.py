@@ -18,19 +18,38 @@ engine = create_engine(settings.DB_URL, connect_args=connect_args, echo=settings
 
 
 def create_db_and_tables(logger: Logger) -> None:
-    """Connect to DB and create tables"""
+    """Connect to the database and create all tables defined in SQLModel metadata.
+
+    Args:
+        logger: Logger instance for logging database connection and table creation.
+
+    Returns:
+        The created database engine instance.
+
+    """
     logger.info("Connecting to database '%s' and generating tables", settings.DB_URL)
     SQLModel.metadata.create_all(engine)
     return engine
 
 
 def dispose_engine(logger: Logger) -> None:
-    """Dispose engine to free resources"""
+    """Dispose of the database engine to free up resources.
+
+    Args:
+        logger: Logger instance for logging database disconnection.
+
+    """
     logger.info("Disconnecting from database")
     engine.dispose()
 
 
 def get_session():
+    """Dependency generator that yields a SQLModel Session for database operations.
+
+    Yields:
+        Session: An active SQLModel session bound to the configured engine.
+
+    """
     with Session(engine) as session:
         yield session
 

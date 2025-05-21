@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from orchestrator.auth import has_admin_access, has_user_access
 from orchestrator.common.exceptions import ConflictError
 from orchestrator.common.schemas import ErrorMessage, ItemID
-from orchestrator.common.utils import add_allow_header_to_resp, get_paginated_list
+from orchestrator.common.utils import add_allow_header_to_resp
 from orchestrator.db import SessionDep
 from orchestrator.v1.users.crud import add_user, delete_user, get_user, get_users
 from orchestrator.v1.users.schemas import User, UserCreate, UserList, UserQueryDep
@@ -120,12 +120,12 @@ def retrieve_users(
         **params.model_dump(exclude={"page", "size", "sort"}, exclude_none=True),
     )
     request.state.logger.info("%d retrieved users: %s", tot_items, repr(users))
-    return get_paginated_list(
-        filtered_items=users,
+    return UserList(
+        data=users,
+        resource_url=str(request.url),
+        page_number=params.page,
+        page_size=params.size,
         tot_items=tot_items,
-        url=request.url,
-        page=params.page,
-        size=params.size,
     )
 
 

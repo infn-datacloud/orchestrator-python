@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
+from fastapi.datastructures import URL
 from pydantic import AnyHttpUrl, computed_field
 from sqlmodel import Field, SQLModel
 
@@ -132,8 +133,59 @@ class PaginatedList(SQLModel):
     Models with lists returned by GET operations MUST inherit from this model.
     """
 
-    links: Annotated[
-        PageNavigation,
-        Field(description="Links useful to navigate toward other pages"),
+    page_number: Annotated[int, Field(exclude=True, description="Current page number")]
+    page_size: Annotated[int, Field(exclude=True, description="Current page size")]
+    tot_items: Annotated[
+        int,
+        Field(
+            exclude=True, description="Number of total items spread across al the pages"
+        ),
     ]
-    page: Annotated[Pagination, Field(description="Page details")]
+    resource_url: Annotated[
+        AnyHttpUrl,
+        Field(
+            exclude=True,
+            description="Current resource URL. It may contain query parameters.",
+        ),
+    ]
+
+    @computed_field
+    @property
+    def page(self) -> Pagination:
+        """Return the pagination details."""
+        return Pagination(
+            number=self.page_number, size=self.page_size, total_elements=self.tot_items
+        )
+
+    @computed_field
+    @property
+    def links(self) -> PageNavigation:
+        """Build navigation links for paginated API responses.
+
+        Args:
+            url: The base URL for navigation links.
+            size: The number of items per page.
+            curr_page: The current page number.
+            tot_pages: The total number of pages available.
+
+        Returns:
+            PageNavigation: An object containing first, previous, next, and last page
+                links.
+
+        """
+        url = URL(str(self.resource_url)).remove_query_params("page")
+        first_page = url.include_query_params(page=1)._url
+        if self.page_number > 1:
+            prev_page = url.include_query_params(page=self.page_number - 1)._url
+        else:
+            prev_page = None
+
+        if self.page_number < self.page.total_pages:
+            next_page = url.include_query_params(page=self.page_number + 1)._url
+        else:
+            next_page = None
+        last_page = url.include_query_params(page=self.page.total_pages)._url
+
+        return PageNavigation(
+            first=first_page, prev=prev_page, next=next_page, last=last_page
+        )

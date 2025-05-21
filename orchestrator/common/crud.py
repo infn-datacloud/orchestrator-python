@@ -31,19 +31,21 @@ def get_conditions(
     conditions = []
     for k, v in kwargs.items():
         if k == "created_before":
-            conditions.append(entity.created_at <= v)
+            conditions.append(entity.__table__.c.get("created_at") <= v)
         elif k == "updated_before":
-            conditions.append(entity.updated_at <= v)
+            conditions.append(entity.__table__.c.get("updated_at") <= v)
         elif k == "created_after":
-            conditions.append(entity.created_at >= v)
+            conditions.append(entity.__table__.c.get("created_at") >= v)
         elif k == "updated_after":
-            conditions.append(entity.updated_at >= v)
+            conditions.append(entity.__table__.c.get("updated_at") >= v)
         elif isinstance(v, str):
             conditions.append(entity.__table__.c.get(k).icontains(v))
         elif isinstance(v, (int, float)):
             if k.endswith("_lte"):
+                k = k[:-4]
                 conditions.append(entity.__table__.c.get(k) <= v)
             elif k.endswith("_gte"):
+                k = k[:-4]
                 conditions.append(entity.__table__.c.get(k) >= v)
             else:
                 conditions.append(entity.__table__.c.get(k) == v)

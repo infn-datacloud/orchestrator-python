@@ -1,96 +1,107 @@
 """Authentication and authorization rules."""
 
-import urllib.parse
 from logging import Logger
+from typing import Annotated
 
-import requests
-from fastapi import status
-from fastapi.security import HTTPBearer
+from fastapi import HTTPException, Request, Security, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from flaat import AuthWorkflow
 from flaat.config import AccessLevel
+from flaat.exceptions import FlaatForbidden, FlaatUnauthenticated
 from flaat.fastapi import Flaat
-from flaat.requirements import AllOf, HasSubIss, IsTrue
+from flaat.requirements import AllOf, HasSubIss, get_claim_requirement
 from flaat.user_infos import UserInfos
-from pydantic import AnyHttpUrl, EmailStr
-from requests.exceptions import ConnectionError, Timeout
 
-from orchestrator.config import AuthorizationMethodsEnum, Settings
+from orchestrator.config import AuthorizationMethodsEnum, Settings, SettingsDep
 
 IDP_TIMEOUT = 5
 OPA_TIMEOUT = 5
 
-security = HTTPBearer()
-
 flaat = Flaat()
 
 
-def configure_auth(settings: Settings, logger: Logger) -> None:
+def configure_flaat(settings: Settings, logger: Logger) -> None:
     """Configure flaat authentication, and OPA or flaat authorization."""
     logger.info("Set trusted IDPs: %s", settings.TRUSTED_IDP_LIST)
     logger.info("Authorization mode is %s", settings.AUTHZ_MODE.value)
     flaat.set_request_timeout(IDP_TIMEOUT)
-    flaat.set_trusted_OP_list(settings.TRUSTED_IDP_LIST)
-    if settings.AUTHZ_MODE == AuthorizationMethodsEnum.email:
+    flaat.set_trusted_OP_list([str(i) for i in settings.TRUSTED_IDP_LIST])
+    if settings.AUTHZ_MODE in [
+        AuthorizationMethodsEnum.email,
+        AuthorizationMethodsEnum.groups,
+    ]:
+        if settings.AUTHZ_MODE == AuthorizationMethodsEnum.email:
+            required = settings.ADMIN_EMAIL_LIST
+        else:
+            required = settings.ADMIN_GROUP_LIST
+        email_requirement = get_claim_requirement(
+            required=required, claim=AuthorizationMethodsEnum.email, match=1
+        )
         flaat.set_access_levels(
             [
-                AccessLevel("is_admin", AllOf(HasSubIss(), IsTrue(local_is_admin)))
-            ]  # TODO: With this configuration local_is_admin can accept only user_infos
+                AccessLevel("is_user", AllOf(HasSubIss())),
+                AccessLevel("is_admin", AllOf(HasSubIss(), email_requirement)),
+            ]
         )
 
 
-def local_is_admin(
-    *, user_infos: UserInfos, admin_emails: list[EmailStr], logger: Logger
-) -> bool:
-    """Check user's email is in the list of admin emails"""
-    logger.info("Verifying user email")
-    email = user_infos.user_info.get("email", None)
-    if email is not None:
-        return email in admin_emails
-    return False
+security = HTTPBearer()
+
+HttpAuthzCredsDep = Annotated[HTTPAuthorizationCredentials, Security(security)]
 
 
-def opa_is_admin(*, token: str, opa_roles_endpoint: AnyHttpUrl, logger: Logger) -> bool:
-    """Contact OPA to verify if the user belongs to the administrators group"""
-    data = {"input": {"authorization": f"Bearer {token}"}}
+def check_authentication(authz_creds: HttpAuthzCredsDep) -> UserInfos:
+    """Verify that the token belongs to a trusted issuer"""
     try:
-        logger.info("Sending user's token to OPA")
-        resp = requests.post(
-            urllib.parse.urljoin(str(opa_roles_endpoint), "is_admin"),
-            json=data,
-            timeout=OPA_TIMEOUT,
-        )
-        if resp.status_code == status.HTTP_200_OK:
-            is_admin = resp.json().get("result", False)
-            logger.info("User is %s admin", "" if is_admin else "not")
-            return is_admin
-
-        if resp.status_code == status.HTTP_400_BAD_REQUEST:
-            raise ConnectionRefusedError(
-                "Authentication failed: Bad request sent to OPA server."
-            )
-        if resp.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
-            raise ConnectionRefusedError(
-                "Authentication failed: OPA server internal error."
-            )
-        raise ConnectionRefusedError(
-            f"Authentication failed: OPA unexpected response code '{resp.status_code}'."
-        )
-    except (Timeout, ConnectionError) as e:
-        raise ConnectionRefusedError(
-            "Authentication failed: OPA server is not reachable."
+        return flaat.get_user_infos_from_access_token(authz_creds.credentials)
+    except FlaatUnauthenticated as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=e.render()
         ) from e
 
 
-def is_admin(*, token: str, settings: Settings, logger: Logger) -> bool:
-    """Validate received token and verify needed rights.
+AuthenticationDep = Annotated[UserInfos, Security(check_authentication)]
 
-    Contact OPA to verify if the target user has the requested role.
-    """
+
+def check_authorization(
+    *, user_infos: UserInfos, access_level: str, settings: Settings, logger: Logger
+) -> None:
+    """Check user permissions based on specified access level"""
     if settings.AUTHZ_MODE == AuthorizationMethodsEnum.email:
-        user_infos = flaat.get_user_infos_from_access_token(token)
-        return local_is_admin(
-            user_infos=user_infos, admin_emails=settings.ADMIN_EMAIL_LIST, logger=logger
+        logger.info("Authorization through local configuration: check user's email")
+        auth_workflow = AuthWorkflow(
+            flaat,
+            user_requirements=flaat._get_access_level_requirement(access_level),
+            process_arguments=settings.ADMIN_EMAIL_LIST,
         )
+        try:
+            auth_workflow.check_user_authorization(user_infos=user_infos)
+        except FlaatForbidden as e:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail=e.render()) from e
     if settings.AUTHZ_MODE == AuthorizationMethodsEnum.opa:
-        return opa_is_admin(
-            token=token, opa_roles_endpoint=settings.OPA_AUTHZ_URL, logger=logger
-        )
+        logger.info("Authorization through OPA")
+
+
+def has_user_access(
+    request: Request, user_infos: AuthenticationDep, settings: SettingsDep
+) -> None:
+    """Check user permissions"""
+    check_authorization(
+        user_infos=user_infos,
+        access_level="is_user",
+        logger=request.state.logger,
+        settings=settings,
+    )
+
+
+def has_admin_access(
+    request: Request, user_infos: AuthenticationDep, settings: SettingsDep
+) -> None:
+    """Check admin permissions"""
+    check_authorization(
+        user_infos=user_infos,
+        access_level="is_admin",
+        logger=request.state.logger,
+        settings=settings,
+    )
+

@@ -3,19 +3,15 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, Security, status
 from fastapi.responses import JSONResponse
 
+from orchestrator.auth import has_admin_access, has_user_access
 from orchestrator.common.exceptions import ConflictError
 from orchestrator.common.schemas import ErrorMessage, ItemID
 from orchestrator.common.utils import add_allow_header_to_resp, get_paginated_list
 from orchestrator.db import SessionDep
-from orchestrator.v1.users.crud import (
-    add_user,
-    delete_user,
-    get_user,
-    get_users,
-)
+from orchestrator.v1.users.crud import add_user, delete_user, get_user, get_users
 from orchestrator.v1.users.schemas import User, UserCreate, UserList, UserQueryDep
 
 user_router = APIRouter(prefix="/users", tags=["users"])
@@ -39,14 +35,19 @@ def available_methods(response: Response) -> None:
     "already exists in the DB. If the sub already exists, the endpoint raises a 409 "
     "error.",
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Security(has_user_access)],
 )
-def create_user(request: Request, user: UserCreate, session: SessionDep) -> ItemID:
+def create_user(
+    request: Request,
+    user: UserCreate,
+    session: SessionDep,
+) -> ItemID:
     try:
         request.state.logger.info(
             "Creating user with params: %s", user.model_dump(exclude_none=True)
         )
         db_user = add_user(session=session, user=user)
-        request.state.logger.info("User created: %s", db_user)
+        request.state.logger.info("User created: %s", repr(db_user))
         return {"id": db_user.id}
     except ConflictError as e:
         request.state.logger.error(e.message)
@@ -57,7 +58,10 @@ def create_user(request: Request, user: UserCreate, session: SessionDep) -> Item
 
 
 @user_router.get(
-    "/", summary="Retrieve users", description="Retrieve a paginated list of users."
+    "/",
+    summary="Retrieve users",
+    description="Retrieve a paginated list of users.",
+    dependencies=[Security(has_user_access)],
 )
 def retrieve_users(
     request: Request, params: UserQueryDep, session: SessionDep
@@ -72,7 +76,7 @@ def retrieve_users(
         sort=params.sort,
         **params.model_dump(exclude={"page", "size", "sort"}, exclude_none=True),
     )
-    request.state.logger.info("%d retrieved users: %s", tot_items, users)
+    request.state.logger.info("%d retrieved users: %s", tot_items, repr(users))
     return get_paginated_list(
         filtered_items=users,
         tot_items=tot_items,
@@ -96,6 +100,7 @@ def retrieve_users(
     description="Check if a user's subject, for this issuer, already exists in the DB "
     "and return it. If the user does not exist in the DB, the endpoint raises a 404 "
     "error.",
+    dependencies=[Security(has_user_access)],
 )
 def retrieve_user(
     request: Request,
@@ -110,7 +115,7 @@ def retrieve_user(
             status_code=status.HTTP_404_NOT_FOUND,
             content={"title": "User not found", "message": message},
         )
-    request.state.logger.info("User with ID '%s' found: %s", str(user_id), user)
+    request.state.logger.info("User with ID '%s' found: %s", str(user_id), repr(user))
     return user
 
 
@@ -119,6 +124,7 @@ def retrieve_user(
     summary="Delete user with given sub",
     description="Delete a user with the given subject, for this issuer, from the DB.",
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Security(has_admin_access)],
 )
 def remove_user(request: Request, user_id: uuid.UUID, session: SessionDep) -> None:
     request.state.logger.info("Delete user with ID '%s'", str(user_id))

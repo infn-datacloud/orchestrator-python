@@ -14,6 +14,7 @@ API_V1_STR = "/api/v1/"
 
 class AuthorizationMethodsEnum(str, Enum):
     email = "email"
+    groups = "groups"
     opa = "opa"
 
 
@@ -100,6 +101,14 @@ class Settings(BaseSettings):
             default_factory=list,
             description="List of administrator's emails. "
             "To use when AUTHZ_MODE is 'email'",
+        ),
+    ]
+    ADMIN_GROUP_LIST: Annotated[
+        str,
+        Field(
+            default="admin",
+            description="Administrators must belong to this group. "
+            "To use when AUTHZ_MODE is 'groups'",
         ),
     ]
     BACKEND_CORS_ORIGINS: Annotated[

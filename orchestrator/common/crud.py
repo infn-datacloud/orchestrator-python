@@ -4,7 +4,7 @@ import uuid
 from typing import TypeVar
 
 import sqlalchemy
-from sqlmodel import Session, SQLModel, delete, desc, func, select
+from sqlmodel import Session, SQLModel, asc, delete, desc, func, select
 
 from orchestrator.common.schemas import ItemID
 
@@ -62,7 +62,7 @@ def get_items(
     if sort.startswith("-"):
         key = desc(entity.__table__.c.get(sort[1:]))
     else:
-        key = entity.__getattribute__(sort)
+        key = asc(entity.__table__.c.get(sort))
 
     conditions = get_conditions(entity=entity, **kwargs)
 

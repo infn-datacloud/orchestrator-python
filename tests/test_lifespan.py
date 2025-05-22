@@ -8,7 +8,7 @@ import orchestrator.__init__ as orchestrator_init
 
 
 @pytest.mark.asyncio
-async def test_lifespan_calls_dependencies():
+async def test_lifespan_calls_dependencies(mock_logger):
     """Test that `lifespan` correctly calls its dependencies.
 
     This test verifies:
@@ -29,7 +29,6 @@ async def test_lifespan_calls_dependencies():
         ) as mock_create_db_and_tables,
         mock.patch.object(orchestrator_init, "dispose_engine") as mock_dispose_engine,
     ):
-        mock_logger = mock.Mock()
         mock_get_logger.return_value = mock_logger
 
         # Create a dummy FastAPI app

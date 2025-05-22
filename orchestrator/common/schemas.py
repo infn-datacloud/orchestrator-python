@@ -29,8 +29,8 @@ class ItemID(SQLModel):
 class ErrorMessage(SQLModel):
     """Model returned when raising an HTTP exception such as 404."""
 
-    title: Annotated[str, Field(description="Error title")]
-    message: Annotated[str, Field(description="Error detailed description")]
+    # title: Annotated[str, Field(description="Error title")]
+    detail: Annotated[str, Field(description="Error detailed description")]
 
 
 class CreationQuery(SQLModel):

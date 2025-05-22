@@ -34,10 +34,9 @@ def test_itemid_default_id():
 
 
 def test_error_message_fields():
-    """Set title and message in ErrorMessage."""
-    err = ErrorMessage(title="Error", message="Something went wrong")
-    assert err.title == "Error"
-    assert err.message == "Something went wrong"
+    """Set detail in ErrorMessage."""
+    err = ErrorMessage(detail="Something went wrong")
+    assert err.detail == "Something went wrong"
 
 
 def test_creation_query_fields():

@@ -3,8 +3,15 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response, Security, status
-from fastapi.responses import JSONResponse
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    Security,
+    status,
+)
 
 from orchestrator.auth import AuthenticationDep, has_admin_access, has_user_access
 from orchestrator.common.exceptions import ConflictError
@@ -39,15 +46,17 @@ def available_methods(response: Response) -> None:
 
 @user_router.post(
     "/",
-    responses={
-        status.HTTP_409_CONFLICT: {"model": ErrorMessage}
-    },  # TODO: Add 401, 403 and others? Standardize response model?
     summary="Create a new user",
     description="Add a new user to the DB. Check if a user's subject, for this issuer, "
     "already exists in the DB. If the sub already exists, the endpoint raises a 409 "
     "error.",
-    status_code=status.HTTP_201_CREATED,
     dependencies=[Security(has_user_access)],
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorMessage},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorMessage},
+        status.HTTP_409_CONFLICT: {"model": ErrorMessage},
+    },
 )
 def create_user(
     request: Request,
@@ -70,7 +79,11 @@ def create_user(
 
     Returns:
         ItemID: A dictionary containing the ID of the created user on success.
-        JSONResponse: A 409 Conflict response if the user already exists.
+
+    Raises:
+        401 Unauthorized: If the user is not authenticated (handled by dependencies).
+        403 Forbidden: If the user does not have permission (handled by dependencies).
+        409 Conflict: If the user already exists (handled below).
 
     """
     try:
@@ -89,10 +102,13 @@ def create_user(
         return {"id": db_user.id}
     except ConflictError as e:
         request.state.logger.error(e.message)
-        return JSONResponse(
-            status_code=status.HTTP_409_CONFLICT,
-            content={"title": "User already exists", "message": e.message},
-        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=e.message
+        ) from e
+        # return JSONResponse(
+        #     status_code=status.HTTP_409_CONFLICT,
+        #     content={"title": "User already exists", "detail": e.message},
+        # )
 
 
 @user_router.get(
@@ -100,6 +116,10 @@ def create_user(
     summary="Retrieve users",
     description="Retrieve a paginated list of users.",
     dependencies=[Security(has_user_access)],
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorMessage},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorMessage},
+    },
 )
 def retrieve_users(
     request: Request, params: UserQueryDep, session: SessionDep
@@ -118,6 +138,10 @@ def retrieve_users(
 
     Returns:
         UserList: A paginated list of users matching the query parameters.
+
+    Raises:
+        401 Unauthorized: If the user is not authenticated (handled by dependencies).
+        403 Forbidden: If the user does not have permission (handled by dependencies).
 
     """
     request.state.logger.info(
@@ -142,12 +166,16 @@ def retrieve_users(
 
 @user_router.get(
     "/{user_id}",
-    responses={status.HTTP_404_NOT_FOUND: {"model": ErrorMessage}},
     summary="Retrieve user with given sub",
     description="Check if a user's subject, for this issuer, already exists in the DB "
     "and return it. If the user does not exist in the DB, the endpoint raises a 404 "
     "error.",
     dependencies=[Security(has_user_access)],
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorMessage},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorMessage},
+        status.HTTP_404_NOT_FOUND: {"model": ErrorMessage},
+    },
 )
 def retrieve_user(
     request: Request,
@@ -169,15 +197,21 @@ def retrieve_user(
         User: The user object if found.
         JSONResponse: A 404 response if the user does not exist.
 
+    Raises:
+        401 Unauthorized: If the user is not authenticated (handled by dependencies).
+        403 Forbidden: If the user does not have permission (handled by dependencies).
+        404 Not Found: If the user does not exist (handled below).
+
     """
     request.state.logger.info("Retrieve user with ID '%s'", str(user_id))
     if user is None:
         message = f"User with sub '{user_id!s}' does not exist"
         request.state.logger.error(message)
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"title": "User not found", "message": message},
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
+        # return JSONResponse(
+        #     status_code=status.HTTP_404_NOT_FOUND,
+        #     content={"title": "User not found", "detail": message},
+        # )
     request.state.logger.info("User with ID '%s' found: %s", str(user_id), repr(user))
     return user
 
@@ -186,8 +220,12 @@ def retrieve_user(
     "/{user_id}",
     summary="Delete user with given sub",
     description="Delete a user with the given subject, for this issuer, from the DB.",
-    status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Security(has_admin_access)],
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"model": ErrorMessage},
+        status.HTTP_403_FORBIDDEN: {"model": ErrorMessage},
+    },
 )
 def remove_user(request: Request, user_id: uuid.UUID, session: SessionDep) -> None:
     """Remove a user from the system by their unique identifier.
@@ -203,6 +241,10 @@ def remove_user(request: Request, user_id: uuid.UUID, session: SessionDep) -> No
 
     Returns:
         None
+
+    Raises:
+        401 Unauthorized: If the user is not authenticated (handled by dependencies).
+        403 Forbidden: If the user does not have permission (handled by dependencies).
 
     """
     request.state.logger.info("Delete user with ID '%s'", str(user_id))

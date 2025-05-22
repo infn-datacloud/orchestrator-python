@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, Response, Security, status
 from fastapi.responses import JSONResponse
 
-from orchestrator.auth import has_admin_access, has_user_access
+from orchestrator.auth import AuthenticationDep, has_admin_access, has_user_access
 from orchestrator.common.exceptions import ConflictError
 from orchestrator.common.schemas import ErrorMessage, ItemID
 from orchestrator.common.utils import add_allow_header_to_resp
@@ -51,17 +51,21 @@ def available_methods(response: Response) -> None:
 )
 def create_user(
     request: Request,
-    user: UserCreate,
+    current_user_infos: AuthenticationDep,
     session: SessionDep,
+    user: UserCreate | None = None,
 ) -> ItemID:
     """Create a new user in the system.
 
     Logs the creation attempt and result. If the user already exists, returns a 409
-    Conflict response.
+    Conflict response. If no body is given, it retrieves from the access token the user
+    data.
 
     Args:
         request (Request): The incoming HTTP request object, used for logging.
-        user (UserCreate): The user data to create.
+        user (UserCreate | None): The user data to create.
+        current_user_infos (AuthenticationDep): The authentication information of the
+            current user retrieved from the access token.
         session (SessionDep): The database session dependency.
 
     Returns:
@@ -70,6 +74,13 @@ def create_user(
 
     """
     try:
+        if user is None:
+            user = User(
+                sub=current_user_infos.subject,
+                issuer=current_user_infos.issuer,
+                name=current_user_infos.user_info["name"],
+                email=current_user_infos.user_info["email"],
+            )
         request.state.logger.info(
             "Creating user with params: %s", user.model_dump(exclude_none=True)
         )
@@ -129,13 +140,6 @@ def retrieve_users(
     )
 
 
-# @user_router.head(
-#     "/{user_id}",
-#     response_model=None,
-#     responses={status.HTTP_404_NOT_FOUND: {"model": None}},
-#     summary="Check user'sub exists",
-#     description="Check if a user's subject, for this issuer, already exists in the DB"
-# )
 @user_router.get(
     "/{user_id}",
     responses={status.HTTP_404_NOT_FOUND: {"model": ErrorMessage}},

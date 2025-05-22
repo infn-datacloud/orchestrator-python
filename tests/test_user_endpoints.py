@@ -5,6 +5,7 @@ import uuid
 import pytest
 
 from orchestrator import sub_app_v1
+from orchestrator.auth import check_authentication
 from orchestrator.v1.users.crud import get_user
 
 
@@ -39,6 +40,38 @@ def test_create_user_success(client, monkeypatch):
 
     monkeypatch.setattr("orchestrator.v1.users.endpoints.add_user", fake_add_user)
     resp = client.post("/api/v1/users/", json=user_data)
+    assert resp.status_code == 201
+    assert resp.json() == {"id": fake_id}
+
+
+def test_create_user_no_body(client, monkeypatch):
+    """Test POST /users/ with no body uses AuthenticationDep and returns 201."""
+    fake_id = str(uuid.uuid4())
+
+    class FakeAuth:
+        subject = "testsub"
+        issuer = "https://issuer.example.com"
+
+        def __init__(self):
+            self.user_info = {"name": "Test User", "email": "test@example.com"}
+
+    def retrieve_info_from_fake_token(authz_creds=None):
+        return FakeAuth()
+
+    class FakeUser:
+        id = fake_id
+
+    def fake_add_user(session, user):
+        return FakeUser()
+
+    # Patch AuthenticationDep to return our fake auth info
+    sub_app_v1.dependency_overrides[check_authentication] = (
+        retrieve_info_from_fake_token
+    )
+
+    monkeypatch.setattr("orchestrator.v1.users.endpoints.add_user", fake_add_user)
+
+    resp = client.post("/api/v1/users/")
     assert resp.status_code == 201
     assert resp.json() == {"id": fake_id}
 

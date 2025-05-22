@@ -1,8 +1,11 @@
 """Authentication and authorization rules."""
 
+import json
+import urllib.parse
 from logging import Logger
 from typing import Annotated
 
+import requests
 from fastapi import HTTPException, Request, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from flaat import AuthWorkflow
@@ -84,7 +87,7 @@ def check_authentication(authz_creds: HttpAuthzCredsDep) -> UserInfos:
 AuthenticationDep = Annotated[UserInfos, Security(check_authentication)]
 
 
-def check_authorization(
+def check_local_authorization(
     *, user_infos: UserInfos, access_level: str, settings: Settings, logger: Logger
 ) -> None:
     """Check user permissions based on specified access level and authorization mode.
@@ -99,22 +102,87 @@ def check_authorization(
         HTTPException: If the user does not have the required access level.
 
     """
-    if settings.AUTHZ_MODE == AuthorizationMethodsEnum.email:
-        logger.info("Authorization through local configuration: check user's email")
-        auth_workflow = AuthWorkflow(
-            flaat,
-            user_requirements=flaat._get_access_level_requirement(access_level),
-            process_arguments=settings.ADMIN_EMAIL_LIST,
+    logger.info(
+        "Authorization through local configuration: check user's %s",
+        settings.AUTHZ_MODE.value,
+    )
+    auth_workflow = AuthWorkflow(
+        flaat,
+        user_requirements=flaat._get_access_level_requirement(access_level),
+    )
+    try:
+        auth_workflow.check_user_authorization(user_infos=user_infos)
+    except FlaatForbidden as e:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail=e.render()) from e
+
+
+async def check_opa_authorization(request: Request, settings: Settings, logger: Logger):
+    """Check user authorization via Open Policy Agent (OPA).
+
+    Send the request data to the OPA server.
+
+    Args:
+        request (Request): The incoming request object containing user information.
+        settings (Settings): Application settings containing OPA server configuration.
+        logger (Logger): Logger instance for logging authorization steps.
+
+    Returns:
+        bool: True if the user is authorized to perform the operation on the endpoint.
+
+    Raises:
+        ConnectionRefusedError: If the OPA server returns a bad request, internal error,
+            unexpected status code, or is unreachable.
+
+    """
+    logger.info("Authorization through OPA")
+    body = await request.body()
+    body = None if body.decode("utf-8") == "" else json.loads(body)
+    data = {
+        "input": {
+            "headers": dict(request.headers),
+            "path": request.url.path,
+            "method": request.method,
+            "body": body,
+        }
+    }
+    try:
+        logger.info("Sending user's token to OPA")
+        resp = requests.post(
+            urllib.parse.urljoin(str(settings.OPA_AUTHZ_URL), "allow"),
+            json=data,
+            timeout=OPA_TIMEOUT,
         )
-        try:
-            auth_workflow.check_user_authorization(user_infos=user_infos)
-        except FlaatForbidden as e:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail=e.render()) from e
-    if settings.AUTHZ_MODE == AuthorizationMethodsEnum.opa:
-        logger.info("Authorization through OPA")
+        if resp.status_code == status.HTTP_200_OK:
+            success = resp.json().get("result", False)
+            if not success:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Unauthorized to perform this operation",
+                )
+
+        if resp.status_code == status.HTTP_400_BAD_REQUEST:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authentication failed: Bad request sent to OPA server",
+            )
+        if resp.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authentication failed: OPA server internal error",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication failed: OPA unexpected response code "
+            f"'{resp.status_code}'",
+        )
+    except (requests.Timeout, ConnectionError) as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication failed: OPA server is not reachable",
+        ) from e
 
 
-def has_user_access(
+async def has_user_access(
     request: Request, user_infos: AuthenticationDep, settings: SettingsDep
 ) -> None:
     """Dependency to check if the current user has user-level access permissions.
@@ -128,15 +196,23 @@ def has_user_access(
         HTTPException: If the user does not have user-level access.
 
     """
-    check_authorization(
-        user_infos=user_infos,
-        access_level="is_user",
-        logger=request.state.logger,
-        settings=settings,
-    )
+    if settings.AUTHZ_MODE in [
+        AuthorizationMethodsEnum.email,
+        AuthorizationMethodsEnum.groups,
+    ]:
+        check_local_authorization(
+            user_infos=user_infos,
+            access_level="is_user",
+            logger=request.state.logger,
+            settings=settings,
+        )
+    elif settings.AUTHZ_MODE == AuthorizationMethodsEnum.opa:
+        await check_opa_authorization(
+            request=request, settings=settings, logger=request.state.logger
+        )
 
 
-def has_admin_access(
+async def has_admin_access(
     request: Request, user_infos: AuthenticationDep, settings: SettingsDep
 ) -> None:
     """Dependency to check if the current user has admin-level access permissions.
@@ -150,10 +226,17 @@ def has_admin_access(
         HTTPException: If the user does not have admin-level access.
 
     """
-    check_authorization(
-        user_infos=user_infos,
-        access_level="is_admin",
-        logger=request.state.logger,
-        settings=settings,
-    )
-
+    if settings.AUTHZ_MODE in [
+        AuthorizationMethodsEnum.email,
+        AuthorizationMethodsEnum.groups,
+    ]:
+        check_local_authorization(
+            user_infos=user_infos,
+            access_level="is_admin",
+            logger=request.state.logger,
+            settings=settings,
+        )
+    elif settings.AUTHZ_MODE == AuthorizationMethodsEnum.opa:
+        await check_opa_authorization(
+            request=request, settings=settings, logger=request.state.logger
+        )

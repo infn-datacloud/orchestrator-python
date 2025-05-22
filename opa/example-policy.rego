@@ -18,15 +18,42 @@ package orchestrator
 
 import rego.v1
 
+default is_user := false
+
+is_user if {
+	some issuer in data.trusted_issuers
+	issuer == claims.iss
+}
+
+default is_admin := false
+
+is_admin if {
+	is_user
+	some role in claims.groups
+	role == data.admin_entitlement
+}
+
 default allow := false
 
+# Allow if user is admin
 allow if {
 	is_admin
 }
 
-is_admin if {
-	some role in claims.groups
-	role == data.admin_entitlement
+# Allow to create a user with a different sub only if admin
+allow if {
+	is_user
+	input.method == "POST"
+	input.path == "/api/v1/users/"
+	input.body == null
+}
+
+# Allow users on permitted endpoints
+allow if {
+	is_user
+	some endpoint in data.user_endpoints
+	endpoint.method == input.method
+	endpoint.path == input.path
 }
 
 claims := payload if {
@@ -45,7 +72,7 @@ bearer_token := t if {
 	# Bearer tokens are contained inside of the HTTP Authorization header. This rule
 	# parses the header and extracts the Bearer token value. If no Bearer token is
 	# provided, the `bearer_token` value is undefined.
-	v := input.authorization
+	v := input.headers.authorization
 	startswith(v, "Bearer ")
 	t := substring(v, count("Bearer "), -1)
 }

@@ -35,7 +35,7 @@ def configure_flaat(settings: Settings, logger: Logger) -> None:
         logger: The logger instance for logging configuration details.
 
     """
-    logger.info("Set trusted IDPs: %s", settings.TRUSTED_IDP_LIST)
+    logger.info("Trusted IDPs have been configured. Total count: %d", len(settings.TRUSTED_IDP_LIST))
     logger.info("Authorization mode is %s", settings.AUTHZ_MODE.value)
     flaat.set_request_timeout(IDP_TIMEOUT)
     flaat.set_trusted_OP_list([str(i) for i in settings.TRUSTED_IDP_LIST])

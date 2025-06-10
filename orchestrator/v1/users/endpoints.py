@@ -204,7 +204,7 @@ def retrieve_user(
     """
     request.state.logger.info("Retrieve user with ID '%s'", str(user_id))
     if user is None:
-        message = f"User with sub '{user_id!s}' does not exist"
+        message = f"User with ID '{user_id!s}' does not exist"
         request.state.logger.error(message)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
         # return JSONResponse(

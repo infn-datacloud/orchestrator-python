@@ -93,7 +93,7 @@ def test_create_user_conflict(client, monkeypatch):
     monkeypatch.setattr("orchestrator.v1.users.endpoints.add_user", fake_add_user)
     resp = client.post("/api/v1/users/", json=user_data)
     assert resp.status_code == 409
-    assert resp.json()["title"] == "User already exists"
+    assert resp.json()["detail"] == "User already exists"
 
 
 def test_get_users_success(client, monkeypatch):
@@ -143,7 +143,7 @@ def test_get_user_not_found(client, monkeypatch):
 
     resp = client.get(f"/api/v1/users/{fake_id}")
     assert resp.status_code == 404
-    assert resp.json()["title"] == "User not found"
+    assert resp.json()["detail"] == f"User with ID '{fake_id}' does not exist"
 
 
 def test_delete_user_success(client, monkeypatch):

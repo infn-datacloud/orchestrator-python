@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from orchestrator import app, sub_app_v1
-from orchestrator.auth import has_admin_access, has_user_access
+from orchestrator.auth import check_authentication, check_authorization
 
 
 @pytest.fixture
@@ -16,8 +16,8 @@ def client():
     Patch authentication dependencies to always allow access for tests
     """
     with TestClient(app, headers={"Authorization": "Bearer fake-token"}) as test_client:
-        sub_app_v1.dependency_overrides[has_user_access] = lambda: True
-        sub_app_v1.dependency_overrides[has_admin_access] = lambda: True
+        sub_app_v1.dependency_overrides[check_authentication] = lambda: None
+        sub_app_v1.dependency_overrides[check_authorization] = lambda: None
         yield test_client
 
 

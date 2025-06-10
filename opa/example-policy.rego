@@ -22,14 +22,14 @@ default is_user := false
 
 is_user if {
 	some issuer in data.trusted_issuers
-	issuer == claims.iss
+	issuer.endpoint == input.user_info.iss
 }
 
 default is_admin := false
 
 is_admin if {
 	is_user
-	some role in claims.groups
+	some role in input.user_info.groups
 	role == data.admin_entitlement
 }
 
@@ -45,7 +45,7 @@ allow if {
 	is_user
 	input.method == "POST"
 	input.path == "/api/v1/users/"
-	input.body == null
+	input.has_body == false
 }
 
 # Allow users on permitted endpoints
@@ -54,25 +54,4 @@ allow if {
 	some endpoint in data.user_endpoints
 	endpoint.method == input.method
 	endpoint.path == input.path
-}
-
-claims := payload if {
-	# This statement invokes the built-in function `io.jwt.decode` passing the
-	# parsed bearer_token as a parameter. The `io.jwt.decode` function returns an
-	# array:
-	#
-	#	[header, payload, signature]
-	#
-	# In Rego, you can pattern match values using the `=` and `:=` operators. This
-	# example pattern matches on the result to obtain the JWT payload.
-	[_, payload, _] := io.jwt.decode(bearer_token)
-}
-
-bearer_token := t if {
-	# Bearer tokens are contained inside of the HTTP Authorization header. This rule
-	# parses the header and extracts the Bearer token value. If no Bearer token is
-	# provided, the `bearer_token` value is undefined.
-	v := input.headers.authorization
-	startswith(v, "Bearer ")
-	t := substring(v, count("Bearer "), -1)
 }

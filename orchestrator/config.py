@@ -6,17 +6,22 @@ from functools import lru_cache
 from typing import Annotated, Literal
 
 from fastapi import Depends
-from pydantic import AnyHttpUrl, BeforeValidator, EmailStr, Field
+from pydantic import AnyHttpUrl, BeforeValidator, EmailStr, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing_extensions import Self
 
 API_V1_STR = "/api/v1/"
+
+
+class AuthenticationMethodsEnum(str, Enum):
+    """Enumeration of supported authentication methods."""
+
+    local = "local"
 
 
 class AuthorizationMethodsEnum(str, Enum):
     """Enumeration of supported authorization methods."""
 
-    email = "email"
-    groups = "groups"
     opa = "opa"
 
 
@@ -101,28 +106,18 @@ class Settings(BaseSettings):
             description="List of the application trusted identity providers",
         ),
     ]
+    AUTHN_MODE: Annotated[
+        AuthenticationMethodsEnum | None,
+        Field(
+            default=None,
+            description="Authorization method to use. Allowed values: local",
+        ),
+    ]
     AUTHZ_MODE: Annotated[
-        AuthorizationMethodsEnum,
+        AuthorizationMethodsEnum | None,
         Field(
-            default=AuthorizationMethodsEnum.email,
-            description="Authorization method to use. "
-            "Allowed values: email, groups, opa",
-        ),
-    ]
-    ADMIN_EMAIL_LIST: Annotated[
-        list[EmailStr],
-        Field(
-            default_factory=list,
-            description="List of administrator's emails. "
-            "To use when AUTHZ_MODE is 'email'",
-        ),
-    ]
-    ADMIN_GROUP_LIST: Annotated[
-        str,
-        Field(
-            default="admin",
-            description="Administrators must belong to this group. "
-            "To use when AUTHZ_MODE is 'groups'",
+            default=None,
+            description="Authorization method to use. Allowed values: opa",
         ),
     ]
     BACKEND_CORS_ORIGINS: Annotated[
@@ -134,6 +129,25 @@ class Settings(BaseSettings):
     ]
 
     model_config = SettingsConfigDict(env_file=".env")
+
+    @model_validator(mode="after")
+    def verify_authn_authz_mode(self) -> Self:
+        """Validate the configuration of authentication and authorization modes.
+
+        Raises:
+            ValueError: If the authorization mode is defined but the authentication mode
+            is undefined.
+
+        Returns:
+            Self: Returns the current instance for method chaining.
+
+        """
+        if self.AUTHN_MODE is None and self.AUTHZ_MODE is not None:
+            raise ValueError(
+                "If authorization mode is defined, authentication mode can't be "
+                "undefined."
+            )
+        return self
 
 
 @lru_cache

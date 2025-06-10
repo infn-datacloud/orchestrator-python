@@ -12,6 +12,7 @@ import logging
 from pydantic import AnyHttpUrl
 
 from orchestrator.config import (
+    AuthenticationMethodsEnum,
     AuthorizationMethodsEnum,
     LogLevelEnum,
     Settings,
@@ -20,10 +21,13 @@ from orchestrator.config import (
 )
 
 
+def test_authentication_methods_enum_values():
+    """Test that AuthenticationMethodsEnum values are correct."""
+    assert AuthenticationMethodsEnum.local == "local"
+
+
 def test_authorization_methods_enum_values():
     """Test that AuthorizationMethodsEnum values are correct."""
-    assert AuthorizationMethodsEnum.email == "email"
-    assert AuthorizationMethodsEnum.groups == "groups"
     assert AuthorizationMethodsEnum.opa == "opa"
 
 
@@ -59,7 +63,8 @@ def test_settings_defaults():
     assert s.PROJECT_NAME == "Orchestrator"
     assert s.BASE_URL == AnyHttpUrl("http://localhost:8000")
     assert isinstance(s.LOG_LEVEL, LogLevelEnum)
-    assert s.AUTHZ_MODE in list(AuthorizationMethodsEnum)
+    assert isinstance(s.AUTHN_MODE, (str, type(None)))
+    assert isinstance(s.AUTHZ_MODE, (str, type(None)))
     assert isinstance(s.MAINTAINER_NAME, (str, type(None)))
     assert isinstance(s.MAINTAINER_URL, (str, type(None))) or s.MAINTAINER_URL is None
     assert (
@@ -69,8 +74,6 @@ def test_settings_defaults():
     assert isinstance(s.OPA_AUTHZ_URL, str) or s.OPA_AUTHZ_URL is not None
     assert isinstance(s.DB_ECO, bool)
     assert isinstance(s.TRUSTED_IDP_LIST, list)
-    assert isinstance(s.ADMIN_EMAIL_LIST, list)
-    assert isinstance(s.ADMIN_GROUP_LIST, str)
     assert isinstance(s.BACKEND_CORS_ORIGINS, list)
 
 

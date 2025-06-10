@@ -13,7 +13,7 @@ from fastapi import (
     status,
 )
 
-from orchestrator.auth import AuthenticationDep, has_admin_access, has_user_access
+from orchestrator.auth import AuthenticationDep, check_authorization
 from orchestrator.common.exceptions import ConflictError
 from orchestrator.common.schemas import ErrorMessage, ItemID
 from orchestrator.common.utils import add_allow_header_to_resp
@@ -50,7 +50,7 @@ def available_methods(response: Response) -> None:
     description="Add a new user to the DB. Check if a user's subject, for this issuer, "
     "already exists in the DB. If the sub already exists, the endpoint raises a 409 "
     "error.",
-    dependencies=[Security(has_user_access)],
+    dependencies=[Security(check_authorization)],
     status_code=status.HTTP_201_CREATED,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"model": ErrorMessage},
@@ -115,7 +115,7 @@ def create_user(
     "/",
     summary="Retrieve users",
     description="Retrieve a paginated list of users.",
-    dependencies=[Security(has_user_access)],
+    dependencies=[Security(check_authorization)],
     responses={
         status.HTTP_401_UNAUTHORIZED: {"model": ErrorMessage},
         status.HTTP_403_FORBIDDEN: {"model": ErrorMessage},
@@ -166,11 +166,10 @@ def retrieve_users(
 
 @user_router.get(
     "/{user_id}",
-    summary="Retrieve user with given sub",
-    description="Check if a user's subject, for this issuer, already exists in the DB "
-    "and return it. If the user does not exist in the DB, the endpoint raises a 404 "
-    "error.",
-    dependencies=[Security(has_user_access)],
+    summary="Retrieve user with given ID",
+    description="Check if the given user's ID already exists in the DB and return it. "
+    "If the user does not exist in the DB, the endpoint raises a 404 error.",
+    dependencies=[Security(check_authorization)],
     responses={
         status.HTTP_401_UNAUTHORIZED: {"model": ErrorMessage},
         status.HTTP_403_FORBIDDEN: {"model": ErrorMessage},
@@ -191,7 +190,7 @@ def retrieve_user(
     Args:
         request (Request): The incoming HTTP request object.
         user_id (uuid.UUID): The unique identifier of the user to retrieve.
-        user (User | None): The user object, if found, or None.
+        user (User | None): The user object, if found.
 
     Returns:
         User: The user object if found.
@@ -220,7 +219,7 @@ def retrieve_user(
     "/{user_id}",
     summary="Delete user with given sub",
     description="Delete a user with the given subject, for this issuer, from the DB.",
-    dependencies=[Security(has_admin_access)],
+    dependencies=[Security(check_authorization)],
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"model": ErrorMessage},

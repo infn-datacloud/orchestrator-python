@@ -5,8 +5,8 @@ from unittest import mock
 import pytest
 from fastapi.testclient import TestClient
 
-from orchestrator import app, sub_app_v1
 from orchestrator.auth import check_authentication, check_authorization
+from orchestrator.main import app, sub_app_v1
 
 
 @pytest.fixture

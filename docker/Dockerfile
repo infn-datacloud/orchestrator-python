@@ -31,6 +31,5 @@ RUN pip install --upgrade pip \
 
 # Copy the application code
 COPY ./orchestrator /app/orchestrator
-COPY ./main.py /app/main.py
 
-CMD ["fastapi", "run", "/app/main.py", "--port", "80"]
+CMD ["fastapi", "run", "/app/orchestrator/main.py", "--port", "80"]

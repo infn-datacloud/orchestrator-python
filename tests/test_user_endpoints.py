@@ -4,8 +4,8 @@ import uuid
 
 import pytest
 
-from orchestrator import sub_app_v1
 from orchestrator.auth import check_authentication
+from orchestrator.main import sub_app_v1
 from orchestrator.v1.users.crud import get_user
 
 

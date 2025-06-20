@@ -1,4 +1,4 @@
-"""Unit tests for orchestrator.common.utils module.
+"""Unit tests for utils module.
 
 These tests cover:
 - add_allow_header_to_resp header setting

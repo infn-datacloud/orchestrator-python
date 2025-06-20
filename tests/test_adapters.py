@@ -1,4 +1,4 @@
-"""Unit tests for orchestrator.common.adapters module.
+"""Unit tests for adapters.
 
 These tests cover:
 - HttpUrlType process_bind_param
@@ -8,7 +8,7 @@ These tests cover:
 
 from pydantic import AnyHttpUrl
 
-from orchestrator.common.adapters import HttpUrlType
+from orchestrator.utils import HttpUrlType
 
 
 class DummyDialect:

@@ -1,4 +1,4 @@
-"""Unit tests for orchestrator.common.schemas.
+"""Unit tests for v1 common schemas.
 
 Covers:
 - ItemID default UUID generation

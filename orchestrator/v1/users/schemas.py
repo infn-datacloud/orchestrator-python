@@ -7,8 +7,8 @@ from fastapi import Query
 from pydantic import AnyHttpUrl, EmailStr
 from sqlmodel import AutoString, Field, SQLModel, UniqueConstraint, func
 
-from orchestrator.common.adapters import HttpUrlType
-from orchestrator.common.schemas import (
+from orchestrator.utils import HttpUrlType
+from orchestrator.v1.schemas import (
     CreationQuery,
     ItemID,
     PaginatedList,

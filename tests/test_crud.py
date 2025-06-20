@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 from sqlmodel import Field, SQLModel
 
-from orchestrator.common.crud import (
+from orchestrator.v1.crud import (
     add_item,
     delete_item,
     get_conditions,

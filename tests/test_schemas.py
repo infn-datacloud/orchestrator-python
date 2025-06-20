@@ -15,7 +15,7 @@ from datetime import datetime
 
 from pydantic import AnyHttpUrl
 
-from orchestrator.common.schemas import (
+from orchestrator.v1.schemas import (
     CreationQuery,
     ErrorMessage,
     ItemID,

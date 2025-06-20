@@ -34,7 +34,7 @@ from unittest import mock
 import pytest
 import sqlalchemy
 
-from orchestrator.common.exceptions import ConflictError
+from orchestrator.exceptions import ConflictError
 from orchestrator.v1.users.crud import add_user, delete_user, get_user, get_users
 from orchestrator.v1.users.schemas import User, UserCreate
 

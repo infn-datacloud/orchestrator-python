@@ -1,1 +1,1 @@
-"""orchestrator.v1 package initialization."""
+"""REST API v1 package initialization."""

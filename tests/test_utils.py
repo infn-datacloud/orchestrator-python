@@ -6,7 +6,7 @@ These tests cover:
 
 from fastapi import APIRouter, Response
 
-from orchestrator.common.utils import add_allow_header_to_resp
+from orchestrator.utils import add_allow_header_to_resp
 
 
 def test_add_allow_header_to_resp_sets_methods():

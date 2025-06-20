@@ -6,7 +6,7 @@ from typing import TypeVar
 import sqlalchemy
 from sqlmodel import Session, SQLModel, asc, delete, desc, func, select
 
-from orchestrator.common.schemas import ItemID
+from orchestrator.v1.schemas import ItemID
 
 Entity = TypeVar("Entity", bound=ItemID)
 CreateModel = TypeVar("CreateModel", bound=SQLModel)

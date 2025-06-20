@@ -1,1 +1,1 @@
-"""Entry point for the Federation-Registry web app."""
+"""Entry point for the Orchestrator web app."""

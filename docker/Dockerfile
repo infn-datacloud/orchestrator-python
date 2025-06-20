@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.10
+ARG PYTHON_VERSION=3.12
 ARG POETRY_VERSION=1.8.3
 
 # Create requirements.txt from poetry dependencies

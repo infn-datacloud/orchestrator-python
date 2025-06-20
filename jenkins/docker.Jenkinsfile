@@ -26,7 +26,7 @@ pipeline {
     stages {
         stage('Create and push images') {
             parallel {
-                stage('Image for single instance deployment with python 3.10 published on Harbor') {
+                stage('Image for single instance deployment with python 3.12 published on Harbor') {
                     steps {
                         script {
                             dockerRepository.buildAndPushImage(
@@ -43,24 +43,7 @@ pipeline {
                         }
                     }
                 }
-                stage('Image for single instance deployment with python 3.11 published on Harbor') {
-                    steps {
-                        script {
-                            dockerRepository.buildAndPushImage(
-                                imageName: "${HARBOR_ORGANIZATION}/${PROJECT_NAME}",
-                                dockerfile: "${DOCKERFILE}",
-                                registryUrl: "${HARBOR_URL}",
-                                registryCredentialsName: "${HARBOR_CREDENTIALS_NAME}",
-                                registryUser: '${HARBOR_CREDENTIALS_USR}',
-                                registryPassword: '${HARBOR_CREDENTIALS_PSW}',
-                                registryHost: "${HARBOR_HOST}",
-                                registryType: 'harbor2',
-                                pythonVersion: '3.11'
-                            )
-                        }
-                    }
-                }
-                stage('Image for single instance deployment with python 3.10 published on DockerHub') {
+                stage('Image for single instance deployment with python 3.12 published on DockerHub') {
                     steps {
                         script {
                             dockerRepository.buildAndPushImage(
@@ -73,23 +56,6 @@ pipeline {
                                 registryHost: "${DOCKER_HUB_HOST}",
                                 registryType: 'dockerhub',
                                 pythonVersion: '3.10'
-                            )
-                        }
-                    }
-                }
-                stage('Image for single instance deployment with python 3.11 published on DockerHub') {
-                    steps {
-                        script {
-                            dockerRepository.buildAndPushImage(
-                                imageName: "${DOCKER_HUB_ORGANIZATION}/${PROJECT_NAME}",
-                                dockerfile: "${DOCKERFILE}",
-                                registryUrl: "${DOCKER_HUB_URL}",
-                                registryCredentialsName: "${DOCKER_HUB_CREDENTIALS_NAME}",
-                                registryUser: '${DOCKER_HUB_CREDENTIALS_USR}',
-                                registryPassword: '${DOCKER_HUB_CREDENTIALS_PSW}',
-                                registryHost: "${DOCKER_HUB_HOST}",
-                                registryType: 'dockerhub',
-                                pythonVersion: '3.11'
                             )
                         }
                     }

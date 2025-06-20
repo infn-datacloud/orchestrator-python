@@ -1,4 +1,4 @@
-"""Unit tests for orchestrator.common.schemas.
+"""Unit tests for v1 common schemas.
 
 Covers:
 - ItemID default UUID generation
@@ -15,7 +15,7 @@ from datetime import datetime
 
 from pydantic import AnyHttpUrl
 
-from orchestrator.common.schemas import (
+from orchestrator.v1.schemas import (
     CreationQuery,
     ErrorMessage,
     ItemID,
@@ -23,6 +23,7 @@ from orchestrator.common.schemas import (
     PaginatedList,
     Pagination,
     PaginationQuery,
+    SortQuery,
     UpdateQuery,
 )
 
@@ -60,6 +61,11 @@ def test_pagination_query_defaults():
     pq = PaginationQuery()
     assert pq.size == 5
     assert pq.page == 1
+
+
+def test_sort_query_defaults():
+    """Check SortQuery default values."""
+    pq = SortQuery()
     assert pq.sort == "-created_at"
 
 

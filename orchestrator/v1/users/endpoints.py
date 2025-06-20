@@ -14,10 +14,10 @@ from fastapi import (
 )
 
 from orchestrator.auth import AuthenticationDep, check_authorization
-from orchestrator.common.exceptions import ConflictError
-from orchestrator.common.schemas import ErrorMessage, ItemID
-from orchestrator.common.utils import add_allow_header_to_resp
 from orchestrator.db import SessionDep
+from orchestrator.exceptions import ConflictError
+from orchestrator.utils import add_allow_header_to_resp
+from orchestrator.v1.schemas import ErrorMessage, ItemID
 from orchestrator.v1.users.crud import add_user, delete_user, get_user, get_users
 from orchestrator.v1.users.schemas import User, UserCreate, UserList, UserQueryDep
 

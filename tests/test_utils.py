@@ -1,4 +1,4 @@
-"""Unit tests for orchestrator.common.utils module.
+"""Unit tests for utils module.
 
 These tests cover:
 - add_allow_header_to_resp header setting
@@ -6,7 +6,7 @@ These tests cover:
 
 from fastapi import APIRouter, Response
 
-from orchestrator.common.utils import add_allow_header_to_resp
+from orchestrator.utils import add_allow_header_to_resp
 
 
 def test_add_allow_header_to_resp_sets_methods():

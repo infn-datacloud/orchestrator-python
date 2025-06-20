@@ -1,4 +1,4 @@
-"""Unit tests for orchestrator.common.crud module.
+"""Unit tests for v1 common crud functions.
 
 These tests cover:
 - get_conditions for various filter types
@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 from sqlmodel import Field, SQLModel
 
-from orchestrator.common.crud import (
+from orchestrator.v1.crud import (
     add_item,
     delete_item,
     get_conditions,

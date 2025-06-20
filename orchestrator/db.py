@@ -27,7 +27,7 @@ def create_db_and_tables(logger: Logger) -> None:
         The created database engine instance.
 
     """
-    logger.info("Connecting to database '%s' and generating tables", settings.DB_URL)
+    logger.info("Connecting to database and generating tables")
     SQLModel.metadata.create_all(engine)
     return engine
 

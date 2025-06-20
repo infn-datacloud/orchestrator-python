@@ -11,7 +11,7 @@ from sqlmodel import Field, SQLModel
 
 
 class ItemID(SQLModel):
-    """Model usually returned by POST operation with only the item ID.
+    """Schema usually returned by POST operation with only the item ID.
 
     All DB entities must inherit from this entity.
     """
@@ -27,7 +27,7 @@ class ItemID(SQLModel):
 
 
 class ErrorMessage(SQLModel):
-    """Model returned when raising an HTTP exception such as 404."""
+    """Schema returned when raising an HTTP exception such as 404."""
 
     # title: Annotated[str, Field(description="Error title")]
     detail: Annotated[str, Field(description="Error detailed description")]
@@ -75,13 +75,9 @@ class UpdateQuery(SQLModel):
     ]
 
 
-class PaginationQuery(SQLModel):
-    """Model to filter lists in GET operations with multiple items."""
+class SortQuery(SQLModel):
+    """Schema for specifying sorting options in queries."""
 
-    size: Annotated[int, Field(default=5, ge=1, description="Chunk size.")]
-    page: Annotated[
-        int, Field(default=1, ge=1, description="Divide the list in chunks")
-    ]
     sort: Annotated[
         str,
         Field(
@@ -89,6 +85,15 @@ class PaginationQuery(SQLModel):
             description="Name of the key to use to sort values. "
             "Prefix the '-' char to the chosen key to use reverse order.",
         ),
+    ]
+
+
+class PaginationQuery(SQLModel):
+    """Schema to filter lists in GET operations with multiple items."""
+
+    size: Annotated[int, Field(default=5, ge=1, description="Chunk size.")]
+    page: Annotated[
+        int, Field(default=1, ge=1, description="Divide the list in chunks")
     ]
 
 
@@ -113,7 +118,7 @@ class Pagination(SQLModel):
 
 
 class PageNavigation(SQLModel):
-    """Model with the navigation links to use to navigate through a paginated list."""
+    """Schema with the navigation links to use to navigate through a paginated list."""
 
     first: Annotated[AnyHttpUrl, Field(description="Link to the first page")]
     prev: Annotated[
@@ -128,9 +133,9 @@ class PageNavigation(SQLModel):
 
 
 class PaginatedList(SQLModel):
-    """Model with the pagination details and navigation links.
+    """Schema with the pagination details and navigation links.
 
-    Models with lists returned by GET operations MUST inherit from this model.
+    Objects' lists returned by GET operations MUST inherit from this schema.
     """
 
     page_number: Annotated[int, Field(exclude=True, description="Current page number")]

@@ -1,6 +1,6 @@
 services:
   orchestrator:
-    image: orchestrator-python
+    image: harbor.cloud.infn.it/datacloud-middleware/orchestrator-rest-api:main
     container_name: orchestrator
     restart: unless-stopped
     depends_on:
@@ -41,7 +41,7 @@ services:
     ports:
       - 8181:8181
     volumes:
-      - ../opa:/orchestrator:ro
+      - ../opa/data:/orchestrator:ro
     command: run --server --log-level debug --addr 0.0.0.0:8181 /orchestrator
 
 networks:

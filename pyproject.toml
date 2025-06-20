@@ -42,6 +42,6 @@ extend-select = ["B", "C90", "E", "D", "F", "G", "I", "N", "Q", "RUF", "UP", "W"
 
 [tool.coverage.run]
 relative_files = true
-source = ["src/"]
+source = ["orchestrator/"]
 branch = true
 omit = ["tests/**"]

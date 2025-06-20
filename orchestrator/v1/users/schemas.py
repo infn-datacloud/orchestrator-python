@@ -7,12 +7,13 @@ from fastapi import Query
 from pydantic import AnyHttpUrl, EmailStr
 from sqlmodel import AutoString, Field, SQLModel, UniqueConstraint, func
 
-from orchestrator.common.adapters import HttpUrlType
-from orchestrator.common.schemas import (
+from orchestrator.utils import HttpUrlType
+from orchestrator.v1.schemas import (
     CreationQuery,
     ItemID,
     PaginatedList,
     PaginationQuery,
+    SortQuery,
 )
 
 
@@ -47,7 +48,7 @@ class UserCreate(UserBase):
     """Schema used to define request's body parameters of a POST on 'users' endpoint."""
 
 
-class UserQuery(PaginationQuery, CreationQuery):
+class UserQuery(CreationQuery, PaginationQuery, SortQuery):
     """Schema used to define request's body parameters."""
 
     sub: Annotated[

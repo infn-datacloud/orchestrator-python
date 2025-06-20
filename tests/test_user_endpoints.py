@@ -78,7 +78,7 @@ def test_create_user_no_body(client, monkeypatch):
 
 def test_create_user_conflict(client, monkeypatch):
     """Test POST /users/ returns 409 if user already exists."""
-    from orchestrator.common.exceptions import ConflictError
+    from orchestrator.exceptions import ConflictError
 
     user_data = {
         "sub": "testsub",

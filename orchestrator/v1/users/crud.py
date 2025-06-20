@@ -9,10 +9,10 @@ import uuid
 import sqlalchemy
 from sqlmodel import Session
 
-from orchestrator.common.crud import add_item, delete_item, get_item, get_items
-from orchestrator.common.exceptions import ConflictError
-from orchestrator.common.schemas import ItemID
 from orchestrator.db import SessionDep
+from orchestrator.exceptions import ConflictError
+from orchestrator.v1.crud import add_item, delete_item, get_item, get_items
+from orchestrator.v1.schemas import ItemID
 from orchestrator.v1.users.schemas import User, UserCreate
 
 

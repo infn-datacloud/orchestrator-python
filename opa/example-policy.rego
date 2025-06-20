@@ -40,14 +40,6 @@ allow if {
 	is_admin
 }
 
-# Allow to create a user with a different sub only if admin
-allow if {
-	is_user
-	input.method == "POST"
-	input.path == "/api/v1/users/"
-	input.has_body == false
-}
-
 # Allow users on permitted endpoints
 allow if {
 	is_user

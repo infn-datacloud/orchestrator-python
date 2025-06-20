@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 
-import orchestrator.__init__ as orchestrator_init
+from orchestrator import main
 
 
 @pytest.mark.asyncio
@@ -22,12 +22,10 @@ async def test_lifespan_calls_dependencies(mock_logger):
     """
     # Patch dependencies
     with (
-        mock.patch.object(orchestrator_init, "get_logger") as mock_get_logger,
-        mock.patch.object(orchestrator_init, "configure_flaat") as mock_configure_flaat,
-        mock.patch.object(
-            orchestrator_init, "create_db_and_tables"
-        ) as mock_create_db_and_tables,
-        mock.patch.object(orchestrator_init, "dispose_engine") as mock_dispose_engine,
+        mock.patch.object(main, "get_logger") as mock_get_logger,
+        mock.patch.object(main, "configure_flaat") as mock_configure_flaat,
+        mock.patch.object(main, "create_db_and_tables") as mock_create_db_and_tables,
+        mock.patch.object(main, "dispose_engine") as mock_dispose_engine,
     ):
         mock_get_logger.return_value = mock_logger
 
@@ -35,16 +33,14 @@ async def test_lifespan_calls_dependencies(mock_logger):
         dummy_app = mock.Mock()
 
         # Use the async context manager
-        cm = orchestrator_init.lifespan(dummy_app)
+        cm = main.lifespan(dummy_app)
         # __aenter__ yields the dict
         result = await cm.__aenter__()
         assert result == {"logger": mock_logger}
 
         # Check that dependencies were called as expected
-        mock_get_logger.assert_called_once_with(orchestrator_init.settings)
-        mock_configure_flaat.assert_called_once_with(
-            orchestrator_init.settings, mock_logger
-        )
+        mock_get_logger.assert_called_once_with(main.settings)
+        mock_configure_flaat.assert_called_once_with(main.settings, mock_logger)
         mock_create_db_and_tables.assert_called_once_with(mock_logger)
         mock_dispose_engine.assert_not_called()  # Not called until exit
 

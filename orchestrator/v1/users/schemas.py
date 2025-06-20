@@ -13,6 +13,7 @@ from orchestrator.common.schemas import (
     ItemID,
     PaginatedList,
     PaginationQuery,
+    SortQuery,
 )
 
 
@@ -47,7 +48,7 @@ class UserCreate(UserBase):
     """Schema used to define request's body parameters of a POST on 'users' endpoint."""
 
 
-class UserQuery(PaginationQuery, CreationQuery):
+class UserQuery(CreationQuery, PaginationQuery, SortQuery):
     """Schema used to define request's body parameters."""
 
     sub: Annotated[

@@ -23,6 +23,7 @@ from orchestrator.common.schemas import (
     PaginatedList,
     Pagination,
     PaginationQuery,
+    SortQuery,
     UpdateQuery,
 )
 
@@ -60,6 +61,11 @@ def test_pagination_query_defaults():
     pq = PaginationQuery()
     assert pq.size == 5
     assert pq.page == 1
+
+
+def test_sort_query_defaults():
+    """Check SortQuery default values."""
+    pq = SortQuery()
     assert pq.sort == "-created_at"
 
 

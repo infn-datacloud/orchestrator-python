@@ -18,6 +18,13 @@ package orchestrator
 
 import rego.v1
 
+default claim := ""
+
+claim := issuer.claim if {
+	some issuer in data.trusted_issuers
+	issuer.endpoint == input.user_info.iss
+}
+
 default is_user := false
 
 is_user if {
@@ -29,8 +36,8 @@ default is_admin := false
 
 is_admin if {
 	is_user
-	some role in input.user_info.groups
-	role == data.admin_entitlement
+	some role in input.user_info[claim]
+	role in data.admin_entitlements
 }
 
 default allow := false

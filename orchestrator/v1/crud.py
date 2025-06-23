@@ -1,15 +1,58 @@
 """Create Read Update and Delete generic functions."""
 
+import re
 import uuid
 from typing import TypeVar
 
 import sqlalchemy
-from sqlmodel import Session, SQLModel, asc, delete, desc, func, select
+from sqlmodel import Session, SQLModel, asc, delete, desc, func, select, update
 
+from orchestrator.exceptions import ConflictError, NoItemToUpdateError, NotNullError
+from orchestrator.utils import split_camel_case
 from orchestrator.v1.schemas import ItemID
+from orchestrator.v1.users.schemas import User
 
 Entity = TypeVar("Entity", bound=ItemID)
 CreateModel = TypeVar("CreateModel", bound=SQLModel)
+UpdateModel = TypeVar("UpdateModel", bound=SQLModel)
+
+
+def raise_from_integrity_error(
+    *,
+    entity: type[Entity],
+    session: Session,
+    item: CreateModel | UpdateModel,
+    error: Exception,
+):
+    """Handle and raise specific errors for NOT NULL and UNIQUE constraint violations.
+
+    Args:
+        entity: The SQLModel entity class involved in the operation.
+        session: The SQLModel session for database access.
+        item: The model instance being created or updated.
+        error: The exception raised during the database operation.
+
+    Raises:
+        NotNullError: If a NOT NULL constraint is violated.
+        ConflictError: If a UNIQUE constraint is violated.
+
+    """
+    session.rollback()
+    element_str = split_camel_case(entity.__name__)
+
+    match = re.search(r"(?<=NOT\sNULL\sconstraint\sfailed:\s).*", error.args[0])
+    if match is not None:
+        attr = match.group(0).split(".")[1]
+        raise NotNullError(
+            f"Attribute '{attr}' of {element_str} can't be NULL"
+        ) from error
+
+    match = re.search(r"(?<=UNIQUE\sconstraint\sfailed:\s).*", error.args[0])
+    if match is not None:
+        attr = match.group(0).split(".")[1]
+        raise ConflictError(
+            f"{element_str} with {attr} '{item.model_dump().get(attr)}' already exists"
+        ) from error
 
 
 def get_conditions(
@@ -118,22 +161,82 @@ def get_items(
     return items, tot_items
 
 
-def add_item(*, entity: type[Entity], session: Session, item: CreateModel) -> Entity:
+def add_item(
+    *,
+    entity: type[Entity],
+    session: Session,
+    item: CreateModel,
+    created_by: User | None = None,
+) -> Entity:
     """Add a new item to the database.
 
     Args:
         entity: The SQLModel entity class to add.
         session: The SQLModel session for database access.
         item: The Pydantic/SQLModel model instance to add.
+        created_by: The user who is creating the item, or None if not applicable.
 
     Returns:
         The newly created entity instance.
 
+    Raises:
+        NotNullError: If a NOT NULL constraint is violated.
+        ConflictError: If a UNIQUE constraint is violated.
+
     """
-    db_item = entity(**item.model_dump())
-    session.add(db_item)
-    session.commit()
-    return db_item
+    kwargs = {}
+    if created_by is not None:
+        kwargs = {"created_by": created_by.id}
+    try:
+        db_item = entity(**item.model_dump(), **kwargs)
+        session.add(db_item)
+        session.commit()
+        return db_item
+    except sqlalchemy.exc.IntegrityError as e:
+        raise_from_integrity_error(entity=entity, session=session, item=item, error=e)
+
+
+def update_item(
+    *,
+    entity: type[Entity],
+    session: Session,
+    item_id: uuid.UUID,
+    new_data: UpdateModel,
+    updated_by: User | None = None,
+) -> None:
+    """Update an existing item in the database with new data.
+
+    Args:
+        entity: The SQLModel entity class to update.
+        session: The SQLModel session for database access.
+        item_id: The UUID of the item to update.
+        new_data: The Pydantic/SQLModel model instance containing updated fields.
+        updated_by: The user who is editing the item, or None if not applicable.
+
+    Raises:
+        NoItemToUpdateError: If no item with the given ID exists in the database.
+        NotNullError: If a NOT NULL constraint is violated.
+        ConflictError: If a UNIQUE constraint is violated.
+
+    """
+    try:
+        kwargs = {}
+        if updated_by is not None:
+            kwargs = {"updated_by": updated_by.id, "updated_at": func.now}
+        statement = (
+            update(entity)
+            .where(entity.id == item_id)
+            .values(**new_data.model_dump(), **kwargs)
+        )
+        result = session.exec(statement)
+        if result.rowcount == 0:
+            element_str = split_camel_case(entity.__name__)
+            raise NoItemToUpdateError(f"{element_str} with ID {item_id} does not exist")
+        session.commit()
+    except sqlalchemy.exc.IntegrityError as e:
+        raise_from_integrity_error(
+            entity=entity, session=session, item=new_data, error=e
+        )
 
 
 def delete_item(*, entity: type[Entity], session: Session, item_id: uuid.UUID) -> None:

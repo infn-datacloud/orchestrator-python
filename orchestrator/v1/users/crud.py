@@ -1,17 +1,18 @@
-"""User CRUD utility functions for orchestrator service.
+"""User CRUD utility functions for fed-mgr service.
 
 This module provides functions to retrieve, list, add, and delete users in the database.
 It wraps generic CRUD operations with user-specific logic and exception handling.
 """
 
 import uuid
+from typing import Annotated
 
-import sqlalchemy
+from fastapi import Depends
 from sqlmodel import Session
 
+from orchestrator.auth import AuthenticationDep
 from orchestrator.db import SessionDep
-from orchestrator.exceptions import ConflictError
-from orchestrator.v1.crud import add_item, delete_item, get_item, get_items
+from orchestrator.v1.crud import add_item, delete_item, get_item, get_items, update_item
 from orchestrator.v1.schemas import ItemID
 from orchestrator.v1.users.schemas import User, UserCreate
 
@@ -64,18 +65,22 @@ def add_user(*, session: Session, user: UserCreate) -> ItemID:
     Returns:
         ItemID: The identifier of the newly created user.
 
-    Raises:
-        ConflictError: If a user with the same sub and issuer already exists.
+    """
+    return add_item(session=session, entity=User, item=user)
+
+
+def update_user(*, session: Session, user_id: uuid.UUID, new_user: UserCreate) -> None:
+    """Update a user by their unique user_id from the database.
+
+    Completely override a user entity.
+
+    Args:
+        session: The database session.
+        user_id: The UUID of the user to delete.
+        new_user: The new data to update the user with.
 
     """
-    try:
-        return add_item(session=session, entity=User, item=user)
-    except sqlalchemy.exc.IntegrityError as e:
-        if "UNIQUE constraint failed: user.sub, user.issuer" in e.args[0]:
-            raise ConflictError(
-                f"User with sub '{user.sub}' and belonging to issuer "
-                f"'{user.issuer}' already exists"
-            ) from e
+    return update_item(session=session, entity=User, item_id=user_id, new_data=new_user)
 
 
 def delete_user(*, session: Session, user_id: uuid.UUID) -> None:
@@ -86,4 +91,29 @@ def delete_user(*, session: Session, user_id: uuid.UUID) -> None:
         user_id: The UUID of the user to delete.
 
     """
-    delete_item(session=session, entity=User, item_id=user_id)
+    return delete_item(session=session, entity=User, item_id=user_id)
+
+
+def get_current_user(user_infos: AuthenticationDep, session: SessionDep) -> User | None:
+    """Retrieve from the DB the user matching the user submitting the request.
+
+    Args:
+        user_infos: The authentication dependency containing user information.
+        session: The database session dependency.
+
+    Returns:
+        User instance if found, otherwise None.
+
+    """
+    users, count = get_users(
+        session=session,
+        skip=0,
+        limit=1,
+        sort="-created_at",
+        sub=user_infos.user_info["sub"],
+        issuer=user_infos.user_info["iss"],
+    )
+    return None if count == 0 else users[0]
+
+
+CurrenUserDep = Annotated[User, Depends(get_current_user)]

@@ -61,7 +61,7 @@ def test_get_level_with_int():
 def test_settings_defaults():
     """Test that Settings model has correct default values and types."""
     s = Settings()
-    assert s.PROJECT_NAME == "Orchestrator"
+    assert s.PROJECT_NAME == "Federation-Manager"
     assert s.BASE_URL == AnyHttpUrl("http://localhost:8000")
     assert isinstance(s.LOG_LEVEL, LogLevelEnum)
     assert isinstance(s.AUTHN_MODE, (str, type(None)))

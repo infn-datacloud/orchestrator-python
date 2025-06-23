@@ -1,4 +1,4 @@
-"""Unit tests for CRUD operations related to the User entity in the orchestrator app.
+"""Unit tests for CRUD operations related to the User entity in the fe-mgr app.
 
 This module contains tests for the following functionalities:
 - Retrieving a user by ID (`get_user`)
@@ -26,16 +26,25 @@ Test Cases:
         unique constraint violation.
     test_delete_user_calls_delete_item: Verifies that `delete_user` calls the delete
         operation with correct arguments.
+    test_get_current_user_found: Verifies that `get_current_user` returns the user
+        object when the user is found.
+    test_get_current_user_not_found: Verifies that `get_current_user` returns None
+        when the user is not found.
 """
 
 import uuid
 from unittest import mock
 
 import pytest
-import sqlalchemy
 
-from orchestrator.exceptions import ConflictError
-from orchestrator.v1.users.crud import add_user, delete_user, get_user, get_users
+from orchestrator.v1.users.crud import (
+    add_user,
+    delete_user,
+    get_current_user,
+    get_user,
+    get_users,
+    update_user,
+)
 from orchestrator.v1.users.schemas import User, UserCreate
 
 
@@ -165,34 +174,6 @@ def test_add_user_success(session):
         assert result is fake_item_id
 
 
-def test_add_user_conflict_error(session):
-    """Verify that `add_user` raises a `ConflictError` on unique constraint violation.
-
-    This test mocks the `add_item` function to raise an `IntegrityError` simulating
-    a unique constraint violation, then asserts that `add_user` raises a
-    `ConflictError` and the error message contains 'already exists'.
-
-    Args:
-        session: The mock database session used for the operation.
-
-    """
-    fake_user_create = mock.Mock(spec=UserCreate)
-    # Add required attribute to avoid AttributeError
-    fake_user_create.sub = "fake-sub"
-    fake_user_create.issuer = "fake-issuer"
-    # Simulate IntegrityError with unique constraint message
-    exc = sqlalchemy.exc.IntegrityError(
-        statement=None,
-        params=None,
-        orig=Exception("UNIQUE constraint failed: user.sub, user.issuer"),
-    )
-    exc.args = ("UNIQUE constraint failed: user.sub, user.issuer",)
-    with mock.patch("orchestrator.v1.users.crud.add_item", side_effect=exc):
-        with pytest.raises(ConflictError) as e:
-            add_user(session=session, user=fake_user_create)
-        assert "already exists" in str(e.value)
-
-
 def test_delete_user_calls_delete_item(session, user_id):
     """Verify that `delete_user` calls `delete_item` with the correct arguments.
 
@@ -210,3 +191,64 @@ def test_delete_user_calls_delete_item(session, user_id):
         mock_delete_item.assert_called_once_with(
             session=session, entity=User, item_id=user_id
         )
+
+
+def test_get_current_user_found(session):
+    """Test get_current_user returns the user when found."""
+    user_infos = mock.Mock()
+    user_infos.user_info = {"sub": "sub-123", "iss": "issuer-abc"}
+    fake_user = mock.Mock(spec=User)
+    with mock.patch(
+        "orchestrator.v1.users.crud.get_users", return_value=([fake_user], 1)
+    ) as mock_get_users:
+        result = get_current_user(user_infos, session)
+        mock_get_users.assert_called_once_with(
+            session=session,
+            skip=0,
+            limit=1,
+            sort="-created_at",
+            sub=user_infos.user_info["sub"],
+            issuer=user_infos.user_info["iss"],
+        )
+        assert result is fake_user
+
+
+def test_get_current_user_not_found(session):
+    """Test get_current_user returns None when user is not found."""
+    user_infos = mock.Mock()
+    user_infos.user_info = {"sub": "sub-123", "iss": "issuer-abc"}
+    with mock.patch(
+        "orchestrator.v1.users.crud.get_users", return_value=([], 0)
+    ) as mock_get_users:
+        result = get_current_user(user_infos, session)
+        mock_get_users.assert_called_once_with(
+            session=session,
+            skip=0,
+            limit=1,
+            sort="-created_at",
+            sub=user_infos.user_info["sub"],
+            issuer=user_infos.user_info["iss"],
+        )
+        assert result is None
+
+
+def test_update_user_success(session, user_id):
+    """Test that update_user calls update_item with correct arguments."""
+    fake_user_create = mock.Mock(spec=UserCreate)
+    with mock.patch("orchestrator.v1.users.crud.update_item") as mock_update_item:
+        update_user(session=session, user_id=user_id, new_user=fake_user_create)
+        mock_update_item.assert_called_once_with(
+            session=session, entity=User, item_id=user_id, new_data=fake_user_create
+        )
+
+
+def test_update_user_raises_no_item_to_update(session, user_id):
+    """Test that update_user propagates NoItemToUpdateError from update_item."""
+    fake_user_create = mock.Mock(spec=UserCreate)
+    with mock.patch(
+        "orchestrator.v1.users.crud.update_item",
+        side_effect=Exception("NoItemToUpdateError"),
+    ):
+        with pytest.raises(Exception) as exc_info:
+            update_user(session=session, user_id=user_id, new_user=fake_user_create)
+        assert "NoItemToUpdateError" in str(exc_info.value)

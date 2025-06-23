@@ -25,7 +25,7 @@ def test_get_logger_returns_logger_and_sets_level(monkeypatch):
     settings = DummySettings(logging.WARNING)
     logger = get_logger(settings)
     assert isinstance(logger, logging.Logger)
-    assert logger.name == "orchestrator-api"
+    assert logger.name == "fed-mgr-api"
     assert logger.level == logging.WARNING
 
 
@@ -39,7 +39,7 @@ def test_get_logger_adds_stream_handler_and_formatter(monkeypatch):
     # The formatter should match the expected format
     formatter = handlers[0].formatter
     log_record = logging.LogRecord(
-        name="orchestrator-api",
+        name="fed-mgr-api",
         level=logging.INFO,
         pathname="test.py",
         lineno=1,
@@ -51,7 +51,7 @@ def test_get_logger_adds_stream_handler_and_formatter(monkeypatch):
     # Check for expected fields in the formatted log
     assert re.search(r"\d{4}-\d{2}-\d{2}", formatted)  # Date
     assert "INFO" in formatted
-    assert "orchestrator-api" in formatted
+    assert "fed-mgr-api" in formatted
     assert "Test message" in formatted
     assert "processName" in formatter._fmt
     assert "threadName" in formatter._fmt

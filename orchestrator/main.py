@@ -3,7 +3,7 @@
 import urllib.parse
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlmodel import Session
@@ -11,6 +11,7 @@ from sqlmodel import Session
 from orchestrator.auth import configure_flaat
 from orchestrator.config import API_V1_STR, get_settings
 from orchestrator.db import create_db_and_tables, dispose_engine
+from orchestrator.exceptions import ItemNotFoundError
 from orchestrator.logger import get_logger
 from orchestrator.v1.router import public_router_v1, secured_router_v1
 from orchestrator.v1.users.crud import create_fake_user, delete_fake_user
@@ -113,8 +114,28 @@ def http_exception_handler(request: Request, exc: HTTPException):
 
     """
     return JSONResponse(
-        content={"status": exc.status_code, "detail": exc.detail},
         status_code=exc.status_code,
+        content={"status": exc.status_code, "detail": exc.detail},
+    )
+
+
+@sub_app_v1.exception_handler(ItemNotFoundError)
+def item_not_found_exception_handler(request: Request, exc: ItemNotFoundError):
+    """Handle ItemNotFoundError errors by returning a JSON response.
+
+    The new object contains the exception's status code and detail.
+
+    Args:
+        request (Request): The incoming HTTP request that caused the exception.
+        exc (ItemNotFoundError): The exception instance.
+
+    Returns:
+        JSONResponse: A JSON response with the status code and detail of the exception.
+
+    """
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"status": status.HTTP_404_NOT_FOUND, "message": exc.message},
     )
 
 

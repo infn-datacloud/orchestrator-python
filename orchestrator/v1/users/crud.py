@@ -83,7 +83,10 @@ def update_user(*, session: Session, user_id: uuid.UUID, new_user: UserUpdate) -
 
     """
     return update_item(
-        session=session, entity=User, id=user_id, **new_user.model_dump()
+        session=session,
+        entity=User,
+        id=user_id,
+        **new_user.model_dump(exclude_none=True),
     )
 
 

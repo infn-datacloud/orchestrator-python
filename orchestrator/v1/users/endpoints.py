@@ -16,7 +16,7 @@ from orchestrator.utils import add_allow_header_to_resp
 from orchestrator.v1 import USERS_PREFIX
 from orchestrator.v1.schemas import ErrorMessage, ItemID
 from orchestrator.v1.users.crud import add_user, delete_user, get_users, update_user
-from orchestrator.v1.users.dependencies import UserDep
+from orchestrator.v1.users.dependencies import UserRequiredDep
 from orchestrator.v1.users.schemas import (
     UserCreate,
     UserList,
@@ -165,7 +165,7 @@ def retrieve_users(
     "If the user does not exist in the DB, the endpoint raises a 404 error.",
     responses={status.HTTP_404_NOT_FOUND: {"model": ErrorMessage}},
 )
-def retrieve_user(request: Request, user_id: uuid.UUID, user: UserDep) -> UserRead:
+def retrieve_user(request: Request, user: UserRequiredDep) -> UserRead:
     """Retrieve a user by their unique identifier.
 
     Logs the retrieval attempt, checks if the user exists, and returns the user object
@@ -186,13 +186,7 @@ def retrieve_user(request: Request, user_id: uuid.UUID, user: UserDep) -> UserRe
         404 Not Found: If the user does not exist (handled below).
 
     """
-    msg = f"Retrieve user with ID '{user_id!s}'"
-    request.state.logger.info(msg)
-    if user is None:
-        msg = f"User with ID '{user_id!s}' does not exist"
-        request.state.logger.error(msg)
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
-    msg = f"User with ID '{user_id!s}' found: {user.model_dump_json()}"
+    msg = f"User with ID '{user.id!s}' found: {user.model_dump_json()}"
     request.state.logger.info(msg)
     return user
 

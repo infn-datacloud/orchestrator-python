@@ -3,8 +3,9 @@
 import uuid
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Request
 
+from orchestrator.exceptions import ItemNotFoundError
 from orchestrator.v1.deployments.crud import get_deployment
 from orchestrator.v1.models import Deployment
 
@@ -29,9 +30,9 @@ def deployment_required(
 
     """
     if deployment is None:
-        message = f"Deployment with ID '{deployment_id!s}' does not exist"
+        message = f"Deployment with id={deployment_id!s} does not exist"
         request.state.logger.error(message)
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
+        raise ItemNotFoundError(message)
     return deployment
 
 

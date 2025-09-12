@@ -3,8 +3,9 @@
 import uuid
 from typing import Annotated
 
-from fastapi import Body, Depends, HTTPException, Request, status
+from fastapi import Body, Depends, Request
 
+from orchestrator.exceptions import ItemNotFoundError
 from orchestrator.v1.models import Template
 from orchestrator.v1.templates.crud import get_template
 from orchestrator.v1.templates.schemas import TemplateCreate
@@ -30,9 +31,9 @@ def template_required(
 
     """
     if template is None:
-        message = f"Template with ID '{template_id!s}' does not exist"
+        message = f"Template with id={template_id!s} does not exist"
         request.state.logger.error(message)
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
+        raise ItemNotFoundError(message)
     return template
 
 

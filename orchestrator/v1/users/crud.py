@@ -11,7 +11,7 @@ from sqlmodel import Session
 from orchestrator.db import SessionDep
 from orchestrator.v1.crud import add_item, delete_item, get_item, get_items, update_item
 from orchestrator.v1.models import User
-from orchestrator.v1.users.schemas import UserCreate
+from orchestrator.v1.users.schemas import UserCreate, UserUpdate
 
 FAKE_USER_NAME = "fake_name"
 FAKE_USER_EMAIL = "fake@email.com"
@@ -71,7 +71,7 @@ def add_user(*, session: Session, user: UserCreate) -> User:
     return add_item(session=session, entity=User, **user.model_dump())
 
 
-def update_user(*, session: Session, user_id: uuid.UUID, new_user: UserCreate) -> None:
+def update_user(*, session: Session, user_id: uuid.UUID, new_user: UserUpdate) -> None:
     """Update a user by their unique user_id from the database.
 
     Completely override a user entity.

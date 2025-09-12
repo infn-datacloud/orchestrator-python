@@ -12,7 +12,7 @@ from sqlmodel import Session
 from orchestrator.db import SessionDep
 from orchestrator.v1.crud import add_item, delete_item, get_item, get_items, update_item
 from orchestrator.v1.models import Template, User
-from orchestrator.v1.templates.schemas import TemplateCreate
+from orchestrator.v1.templates.schemas import TemplateCreate, TemplateUpdate
 
 
 def get_template(*, session: SessionDep, template_id: uuid.UUID) -> Template | None:
@@ -85,8 +85,8 @@ def add_template(
 def update_template(
     *,
     session: Session,
-    template_id: uuid.UUID,
-    new_template: TemplateCreate,
+    template: Template,
+    new_data: TemplateUpdate,
     updated_by: User,
 ) -> None:
     """Update an identity provider by their unique template_id from the database.
@@ -95,17 +95,17 @@ def update_template(
 
     Args:
         session: The database session.
-        template_id: The UUID of the identity provider to update.
-        new_template: The new data to update the identity provider with.
+        template: The UUID of the identity provider to update.
+        new_data: The new data to update the identity provider with.
         updated_by: The User instance representing the updater of the identity provider.
 
     """
     return update_item(
         session=session,
         entity=Template,
-        id=template_id,
+        item=template,
         updated_by=updated_by,
-        **new_template.model_dump(exclude_none=True),
+        **new_data.model_dump(exclude_none=True),
     )
 
 

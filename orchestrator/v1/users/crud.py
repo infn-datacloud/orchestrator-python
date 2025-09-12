@@ -71,22 +71,22 @@ def add_user(*, session: Session, user: UserCreate) -> User:
     return add_item(session=session, entity=User, **user.model_dump())
 
 
-def update_user(*, session: Session, user_id: uuid.UUID, new_user: UserUpdate) -> None:
+def update_user(*, session: Session, user: User, new_data: UserUpdate) -> None:
     """Update a user by their unique user_id from the database.
 
     Completely override a user entity.
 
     Args:
         session: The database session.
-        user_id: The UUID of the user to delete.
-        new_user: The new data to update the user with.
+        user: The UUID of the user to delete.
+        new_data: The new data to update the user with.
 
     """
     return update_item(
         session=session,
         entity=User,
-        id=user_id,
-        **new_user.model_dump(exclude_none=True),
+        item=user,
+        **new_data.model_dump(exclude_none=True),
     )
 
 

@@ -2,11 +2,10 @@
 
 import uuid
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, Request, Response, status
 
 from orchestrator.auth import AuthenticationDep
 from orchestrator.db import SessionDep
-from orchestrator.exceptions import NotNullError
 from orchestrator.utils import add_allow_header_to_resp
 from orchestrator.v1 import USERS_PREFIX
 from orchestrator.v1.schemas import ErrorMessage, ItemID
@@ -55,7 +54,7 @@ def available_methods(response: Response) -> None:
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"model": ErrorMessage},
     },
 )
-def create_user(
+def create_me(
     request: Request, session: SessionDep, current_user_infos: AuthenticationDep
 ) -> ItemID:
     """From token crendentials, create a new user in the system.
@@ -88,13 +87,7 @@ def create_user(
     )
     msg = f"Creating user with params: {user.model_dump_json()}"
     request.state.logger.info(msg)
-    try:
-        db_user = add_user(session=session, user=user)
-    except NotNullError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=e.message
-        ) from e
+    db_user = add_user(session=session, user=user)
     msg = f"User created: {db_user.model_dump_json()}"
     request.state.logger.info(msg)
     return {"id": db_user.id}
@@ -194,31 +187,25 @@ def retrieve_user(request: Request, user: UserRequiredDep) -> UserRead:
 def edit_user(
     request: Request,
     session: SessionDep,
-    user_id: uuid.UUID,
-    new_user: UserUpdate,
+    user: UserRequiredDep,
+    new_data: UserUpdate,
 ) -> None:
     """Update an existing user in the database with the given user ID.
 
     Args:
         request (Request): The current request object.
-        user_id (uuid.UUID): The unique identifier of the user to update.
-        new_user (UserUpdate): The new user data to update.
         session (SessionDep): The database session dependency.
+        user (uuid.UUID): The unique identifier of the user to update.
+        new_data (UserUpdate): The new user data to update.
 
     Raises:
         HTTPException: If the user is not found or another update error occurs.
 
     """
-    msg = f"Update user with ID '{user_id!s}'"
+    msg = f"Update user with ID '{user.id!s}'"
     request.state.logger.info(msg)
-    try:
-        update_user(session=session, user_id=user_id, new_user=new_user)
-    except NotNullError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=e.message
-        ) from e
-    msg = f"User with ID '{user_id!s}' updated"
+    update_user(session=session, user=user, new_data=new_data)
+    msg = f"User with ID '{user.id!s}' updated"
     request.state.logger.info(msg)
 
 

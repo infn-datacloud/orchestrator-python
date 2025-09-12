@@ -47,7 +47,7 @@ class UserUpdate(SQLModel):
     ]
 
 
-class UserRead(ItemID, CreationTimeRead, UserBase):
+class UserRead(ItemID, CreationTimeRead, UserBase, UserUpdate):
     """Schema used to return User's data to clients."""
 
 

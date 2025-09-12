@@ -11,7 +11,7 @@ from sqlmodel import Session
 
 from orchestrator.db import SessionDep
 from orchestrator.v1.crud import add_item, delete_item, get_item, get_items, update_item
-from orchestrator.v1.deployments.schemas import DeploymentCreate
+from orchestrator.v1.deployments.schemas import DeploymentCreate, DeploymentUpdate
 from orchestrator.v1.models import Deployment, User
 
 
@@ -87,8 +87,8 @@ def add_deployment(
 def update_deployment(
     *,
     session: Session,
-    deployment_id: uuid.UUID,
-    new_deployment: DeploymentCreate,
+    deployment: Deployment,
+    new_data: DeploymentUpdate,
     updated_by: User,
 ) -> None:
     """Update an identity provider by their unique deployment_id from the database.
@@ -97,17 +97,17 @@ def update_deployment(
 
     Args:
         session: The database session.
-        deployment_id: The UUID of the identity provider to update.
-        new_deployment: The new data to update the identity provider with.
+        deployment: The UUID of the identity provider to update.
+        new_data: The new data to update the identity provider with.
         updated_by: The User instance representing the updater of the identity provider.
 
     """
     return update_item(
         session=session,
         entity=Deployment,
-        id=deployment_id,
+        item=deployment,
         updated_by=updated_by,
-        **new_deployment.model_dump(exclude_none=True),
+        **new_data.model_dump(exclude_none=True),
     )
 
 

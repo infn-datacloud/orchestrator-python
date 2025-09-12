@@ -6,11 +6,10 @@ from typing import TypeVar
 
 import sqlalchemy
 import sqlalchemy.exc
-from sqlmodel import Session, SQLModel, asc, delete, desc, func, select, update
+from sqlmodel import Session, SQLModel, asc, delete, desc, func, select
 
-from orchestrator.exceptions import ConflictError, ItemNotFoundError
+from orchestrator.exceptions import ConflictError
 from orchestrator.utils import split_camel_case
-from orchestrator.v1.models import User
 from orchestrator.v1.schemas import ItemID
 
 Entity = TypeVar("Entity", bound=ItemID)
@@ -287,14 +286,14 @@ def add_item(*, entity: type[Entity], session: Session, **kwargs) -> Entity:
 
 
 def update_item(
-    *, entity: type[Entity], session: Session, updated_by: User | None = None, **kwargs
+    *, entity: type[Entity], session: Session, item: Entity, **kwargs
 ) -> None:
     """Update an existing item in the database with new data.
 
     Args:
         entity: The SQLModel entity class to update.
         session: The SQLModel session for database access.
-        updated_by: The User who issued the operation.
+        item: The item to update
         **kwargs: Pydantic/SQLModel model updated fields and additional keyword
             arguments to pass to the entity constructor.
 
@@ -303,28 +302,13 @@ def update_item(
         ConflictError: If a UNIQUE constraint is violated.
 
     """
-    conditions = []
     for k, v in kwargs.items():
-        if isinstance(v, uuid.UUID):
-            conditions.append(entity.__table__.c.get(k) == v)
-
-    if updated_by is not None:
-        kwargs["updated_by_id"] = updated_by.id
-
+        item.__setattr__(k, v)
     try:
-        statement = (
-            update(entity).where(sqlalchemy.and_(True, *conditions)).values(**kwargs)
-        )
-        result = session.exec(statement)
+        session.add(item)
+        session.commit()
     except sqlalchemy.exc.IntegrityError as e:
         raise_from_integrity_error(entity=entity, session=session, error=e, **kwargs)
-
-    if result.rowcount == 0:
-        session.rollback()
-        element_str = split_camel_case(entity.__name__)
-        message = f"{element_str} with given key-value pairs does not exist: {kwargs!s}"
-        raise ItemNotFoundError(message)
-    session.commit()
 
 
 def delete_item(*, entity: type[Entity], session: Session, **kwargs) -> None:

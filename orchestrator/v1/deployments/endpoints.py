@@ -236,16 +236,16 @@ def edit_deployment(
     request: Request,
     session: SessionDep,
     current_user: CurrenUserDep,
-    deployment_id: uuid.UUID,
-    new_deployment: DeploymentUpdate,
+    deployment: DeploymentRequiredDep,
+    new_data: DeploymentUpdate,
 ) -> None:
     """Update an existing deployment in the database with the given deployment ID.
 
     Args:
         request (Request): The current request object.
-        deployment_id (uuid.UUID): The unique identifier of the deployment to update.
-        new_deployment (UserCreate): The new deployment data to update.
         session (SessionDep): The database session dependency.
+        deployment (uuid.UUID): The unique identifier of the deployment to update.
+        new_data (UserCreate): The new deployment data to update.
         current_user (CurrenUserDep): The DB user matching the current user retrieved
             from the access token.
 
@@ -254,21 +254,15 @@ def edit_deployment(
         occurs.
 
     """
-    msg = f"Update deployment with ID '{deployment_id!s}'"
+    msg = f"Update deployment with ID '{deployment.id!s}'"
     request.state.logger.info(msg)
-    try:
-        update_deployment(
-            session=session,
-            deployment_id=deployment_id,
-            new_deployment=new_deployment,
-            updated_by=current_user,
-        )
-    except NotNullError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=e.message
-        ) from e
-    msg = f"Deployment with ID '{deployment_id!s}' updated"
+    update_deployment(
+        session=session,
+        deployment=deployment,
+        new_data=new_data,
+        updated_by=current_user,
+    )
+    msg = f"Deployment with ID '{deployment.id!s}' updated"
     request.state.logger.info(msg)
 
 

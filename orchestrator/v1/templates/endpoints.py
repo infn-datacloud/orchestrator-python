@@ -233,16 +233,16 @@ def edit_template(
     request: Request,
     session: SessionDep,
     current_user: CurrenUserDep,
-    template_id: uuid.UUID,
-    new_template: TemplateUpdate,
+    template: TemplateRequiredDep,
+    new_data: TemplateUpdate,
 ) -> None:
     """Update an existing template in the database with the given template ID.
 
     Args:
         request (Request): The current request object.
-        template_id (uuid.UUID): The unique identifier of the template to update.
-        new_template (UserCreate): The new template data to update.
         session (SessionDep): The database session dependency.
+        template (uuid.UUID): The unique identifier of the template to update.
+        new_data (UserCreate): The new template data to update.
         current_user (CurrenUserDep): The DB user matching the current user retrieved
             from the access token.
 
@@ -251,21 +251,12 @@ def edit_template(
         occurs.
 
     """
-    msg = f"Update template with ID '{template_id!s}'"
+    msg = f"Update template with ID '{template.id!s}'"
     request.state.logger.info(msg)
-    try:
-        update_template(
-            session=session,
-            template_id=template_id,
-            new_template=new_template,
-            updated_by=current_user,
-        )
-    except NotNullError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=e.message
-        ) from e
-    msg = f"Template with ID '{template_id!s}' updated"
+    update_template(
+        session=session, template=template, new_data=new_data, updated_by=current_user
+    )
+    msg = f"Template with ID '{template.id!s}' updated"
     request.state.logger.info(msg)
 
 

@@ -6,7 +6,6 @@ from typing import Annotated
 import requests
 from fastapi import HTTPException, Request, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from flaat.exceptions import FlaatUnauthenticated
 from flaat.fastapi import Flaat
 from flaat.user_infos import UserInfos
 
@@ -70,12 +69,7 @@ def check_flaat_authentication(
 
     """
     logger.debug("Authentication through flaat")
-    try:
-        return flaat.get_user_infos_from_access_token(authz_creds.credentials)
-    except FlaatUnauthenticated as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=e.render()
-        ) from e
+    return flaat.get_user_infos_from_access_token(authz_creds.credentials)
 
 
 def check_authentication(
@@ -155,9 +149,10 @@ async def check_opa_authorization(
             settings.OPA_AUTHZ_URL, json=data, timeout=settings.OPA_TIMEOUT
         )
     except (requests.Timeout, ConnectionError) as e:
+        msg = "Authentication failed: OPA server is not reachable"
+        logger.error(msg)
         raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Authentication failed: OPA server is not reachable",
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=msg
         ) from e
     match resp.status_code:
         case status.HTTP_200_OK:

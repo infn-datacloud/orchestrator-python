@@ -1,6 +1,6 @@
 """Deployments schemas returned by the endpoints."""
 
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import Query
 from sqlmodel import Field, SQLModel
@@ -19,9 +19,9 @@ from orchestrator.v1.schemas import (
 class DeploymentBase(SQLModel):
     """Schema with the basic parameters of the Deployment entity."""
 
-    template_inputs: Annotated[
-        dict[str, Any], Field(description="Dictionary with the TOSCA template inputs")
-    ]
+    # template_inputs: Annotated[
+    #     dict[str, Any], Field(description="Dictionary with the TOSCA template inputs")
+    # ]
     user_group: Annotated[
         str,
         Field(description="User group owning the resources used for this deployment"),

@@ -6,12 +6,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from orchestrator.auth import AuthenticationDep
 from orchestrator.db import SessionDep
-from orchestrator.exceptions import (
-    ConflictError,
-    DeleteFailedError,
-    ItemNotFoundError,
-    NotNullError,
-)
+from orchestrator.exceptions import NotNullError
 from orchestrator.utils import add_allow_header_to_resp
 from orchestrator.v1 import USERS_PREFIX
 from orchestrator.v1.schemas import ErrorMessage, ItemID
@@ -63,7 +58,7 @@ def available_methods(response: Response) -> None:
 def create_user(
     request: Request, session: SessionDep, current_user_infos: AuthenticationDep
 ) -> ItemID:
-    """Create a new user in the system.
+    """From token crendentials, create a new user in the system.
 
     Logs the creation attempt and result. If the user already exists, returns a 409
     Conflict response. If no body is given, it retrieves from the access token the user
@@ -71,10 +66,9 @@ def create_user(
 
     Args:
         request (Request): The incoming HTTP request object, used for logging.
-        user (UserCreate | None): The user data to create.
+        session (SessionDep): The database session dependency.
         current_user_infos (AuthenticationDep): The authentication information of the
             current user retrieved from the access token.
-        session (SessionDep): The database session dependency.
 
     Returns:
         ItemID: A dictionary containing the ID of the created user on success.
@@ -83,6 +77,7 @@ def create_user(
         401 Unauthorized: If the user is not authenticated (handled by dependencies).
         403 Forbidden: If the user does not have permission (handled by dependencies).
         409 Conflict: If the user already exists (handled below).
+        422 Unprocessable entity: If the input values can't be parsed (handled below).
 
     """
     user = UserCreate(
@@ -95,11 +90,6 @@ def create_user(
     request.state.logger.info(msg)
     try:
         db_user = add_user(session=session, user=user)
-    except ConflictError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=e.message
-        ) from e
     except NotNullError as e:
         request.state.logger.error(e.message)
         raise HTTPException(
@@ -223,16 +213,6 @@ def edit_user(
     request.state.logger.info(msg)
     try:
         update_user(session=session, user_id=user_id, new_user=new_user)
-    except ItemNotFoundError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=e.message
-        ) from e
-    except ConflictError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=e.message
-        ) from e
     except NotNullError as e:
         request.state.logger.error(e.message)
         raise HTTPException(
@@ -271,12 +251,6 @@ def remove_user(request: Request, session: SessionDep, user_id: uuid.UUID) -> No
     """
     msg = f"Delete user with ID '{user_id!s}'"
     request.state.logger.info(msg)
-    try:
-        delete_user(session=session, user_id=user_id)
-    except DeleteFailedError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=e.message
-        ) from e
+    delete_user(session=session, user_id=user_id)
     msg = f"User with ID '{user_id!s}' deleted"
     request.state.logger.info(msg)

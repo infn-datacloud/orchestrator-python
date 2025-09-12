@@ -11,12 +11,7 @@ from fastapi import (
 )
 
 from orchestrator.db import SessionDep
-from orchestrator.exceptions import (
-    ConflictError,
-    DeleteFailedError,
-    ItemNotFoundError,
-    NotNullError,
-)
+from orchestrator.exceptions import NotNullError
 from orchestrator.utils import add_allow_header_to_resp
 from orchestrator.v1 import TEMPLATES_PREFIX
 from orchestrator.v1.schemas import ErrorMessage, ItemID
@@ -111,11 +106,6 @@ def create_template(
         db_template = add_template(
             session=session, template=template, created_by=current_user
         )
-    except ConflictError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=e.message
-        ) from e
     except NotNullError as e:
         request.state.logger.error(e.message)
         raise HTTPException(
@@ -270,16 +260,6 @@ def edit_template(
             new_template=new_template,
             updated_by=current_user,
         )
-    except ItemNotFoundError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=e.message
-        ) from e
-    except ConflictError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=e.message
-        ) from e
     except NotNullError as e:
         request.state.logger.error(e.message)
         raise HTTPException(
@@ -321,12 +301,6 @@ def remove_template(
     """
     msg = f"Delete template with ID '{template_id!s}'"
     request.state.logger.info(msg)
-    try:
-        delete_template(session=session, template_id=template_id)
-    except DeleteFailedError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=e.message
-        ) from e
+    delete_template(session=session, template_id=template_id)
     msg = f"Template with ID '{template_id!s}' deleted"
     request.state.logger.info(msg)

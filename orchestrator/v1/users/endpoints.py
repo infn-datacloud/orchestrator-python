@@ -44,7 +44,7 @@ def available_methods(response: Response) -> None:
 
 @user_router.post(
     "/",
-    summary="Create a new user",
+    summary="Create a new user from user's token",
     description="Add a new user to the DB. Check if a user's subject, for this issuer, "
     "already exists in the DB. If the sub already exists, the endpoint raises a 409 "
     "error.",
@@ -59,14 +59,13 @@ def create_me(
 ) -> ItemID:
     """From token crendentials, create a new user in the system.
 
-    Logs the creation attempt and result. If the user already exists, returns a 409
-    Conflict response. If no body is given, it retrieves from the access token the user
-    data.
+    If the user already exists, returns a 409 Conflict response. It retrieves from the
+    access token the user data.
 
     Args:
         request (Request): The incoming HTTP request object, used for logging.
-        session (SessionDep): The database session dependency.
-        current_user_infos (AuthenticationDep): The authentication information of the
+        session (Session): The database session dependency.
+        current_user_infos (UserInfos): The authentication information of the
             current user retrieved from the access token.
 
     Returns:
@@ -75,8 +74,9 @@ def create_me(
     Raises:
         401 Unauthorized: If the user is not authenticated (handled by dependencies).
         403 Forbidden: If the user does not have permission (handled by dependencies).
-        409 Conflict: If the user already exists (handled below).
-        422 Unprocessable entity: If the input values can't be parsed (handled below).
+        409 Conflict: If the user already exists (handled by exception handlers).
+        422 Unprocessable Entity: If the input values can't be parsed (handled by
+            fastapi).
 
     """
     user = UserCreate(
@@ -96,22 +96,22 @@ def create_me(
 @user_router.get(
     "/",
     summary="Retrieve users",
-    description="Retrieve a paginated list of users.",
+    description="Retrieve a paginated list of users. It is possible to filter and sort "
+    "by any field of the entity. It is possible to paginate the returned list.",
 )
 def retrieve_users(
     request: Request, session: SessionDep, params: UserQueryDep
 ) -> UserList:
     """Retrieve a paginated list of users based on query parameters.
 
-    Logs the query parameters and the number of users retrieved. Fetches users from the
-    database using pagination, sorting, and additional filters provided in the query
-    parameters. Returns the users in a paginated response format.
+    Fetches users from the database using pagination, sorting, and additional filters
+    provided in the query parameters. Returns the users in a paginated response format.
 
     Args:
         request (Request): The HTTP request object, used for logging and URL generation.
-        params (UserQueryDep): Dependency containing query parameters for filtering,
+        session (Session): Database session dependency.
+        params (UserQuery): Dependency containing query parameters for filtering,
             sorting, and pagination.
-        session (SessionDep): Database session dependency.
 
     Returns:
         UserList: A paginated list of users matching the query parameters.
@@ -151,14 +151,12 @@ def retrieve_users(
 def retrieve_user(request: Request, user: UserRequiredDep) -> UserRead:
     """Retrieve a user by their unique identifier.
 
-    Logs the retrieval attempt, checks if the user exists, and returns the user object
-    if found. If the user does not exist, logs an error and returns a JSON response with
-    a 404 status.
+    Checks if the user exists, and returns the user object if found. If the user does
+    not exist, logs an error and returns a JSON response with a 404 status.
 
     Args:
         request (Request): The incoming HTTP request object.
-        user_id (uuid.UUID): The unique identifier of the user to retrieve.
-        user (User | None): The user object, if found.
+        user (User): The user object, if found.
 
     Returns:
         User: The user object if found.
@@ -166,7 +164,7 @@ def retrieve_user(request: Request, user: UserRequiredDep) -> UserRead:
     Raises:
         401 Unauthorized: If the user is not authenticated (handled by dependencies).
         403 Forbidden: If the user does not have permission (handled by dependencies).
-        404 Not Found: If the user does not exist (handled below).
+        404 Not Found: If the user does not exist (handled by exception handlers).
 
     """
     msg = f"User with ID '{user.id!s}' found: {user.model_dump_json()}"
@@ -176,8 +174,9 @@ def retrieve_user(request: Request, user: UserRequiredDep) -> UserRead:
 
 @user_router.patch(
     "/{user_id}",
-    summary="Update user with the given id",
-    description="Update a user with the given id in the DB",
+    summary="Update user with given ID",
+    description="Update the public ssh key and refresh token of the user with the "
+    "given ID. If the user does not exist raise a 404 error.",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_404_NOT_FOUND: {"model": ErrorMessage},
@@ -185,21 +184,24 @@ def retrieve_user(request: Request, user: UserRequiredDep) -> UserRead:
     },
 )
 def edit_user(
-    request: Request,
-    session: SessionDep,
-    user: UserRequiredDep,
-    new_data: UserUpdate,
+    request: Request, session: SessionDep, user: UserRequiredDep, new_data: UserUpdate
 ) -> None:
-    """Update an existing user in the database with the given user ID.
+    """Update an existing user with the given user ID.
 
     Args:
         request (Request): The current request object.
-        session (SessionDep): The database session dependency.
-        user (uuid.UUID): The unique identifier of the user to update.
+        session (Session): The database session dependency.
+        user (User): The user entity to update, if it exists.
         new_data (UserUpdate): The new user data to update.
 
+    Returns:
+        None
+
     Raises:
-        HTTPException: If the user is not found or another update error occurs.
+        401 Unauthorized: If the user is not authenticated (handled by dependencies).
+        403 Forbidden: If the user does not have permission (handled by dependencies).
+        404 Not Found: If the user does not exist (handled by exception handlers).
+        422 Unprocessable Entity: If the input data are not valid (handled by fastapi).
 
     """
     msg = f"Update user with ID '{user.id!s}'"
@@ -211,10 +213,11 @@ def edit_user(
 
 @user_router.delete(
     "/{user_id}",
-    summary="Delete user with given id",
-    description="Delete a user with the given id from the DB.",
+    summary="Delete user with given ID",
+    description="Delete a user with the given ID from the DB. If the user has one or "
+    "more associated deployments or other entities in the DB, they can't be deleted.",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={status.HTTP_400_BAD_REQUEST: {"model": ErrorMessage}},
+    responses={status.HTTP_409_CONFLICT: {"model": ErrorMessage}},
 )
 def remove_user(
     request: Request, session: SessionDep, user_id: uuid.UUID, user: UserDep
@@ -226,10 +229,10 @@ def remove_user(
 
     Args:
         request (Request): The HTTP request object, used for logging and request context
-        session (SessionDep): The database session dependency used to perform the
+        session (Session): The database session dependency used to perform the
             deletion.
         user_id (uuid.UUID): The unique identifier of the user to be removed.
-        user (uuid.UUID): The unique identifier of the user to be removed.
+        user (User | None): The DB entity to be removed.
 
     Returns:
         None
@@ -237,6 +240,8 @@ def remove_user(
     Raises:
         401 Unauthorized: If the user is not authenticated (handled by dependencies).
         403 Forbidden: If the user does not have permission (handled by dependencies).
+        409 Conflict: If the user has related entities and can't be deleted (handled by
+            dependencies).
 
     """
     msg = f"Delete user with ID '{user_id!s}'"

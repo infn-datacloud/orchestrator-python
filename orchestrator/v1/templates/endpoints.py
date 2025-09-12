@@ -2,16 +2,9 @@
 
 import uuid
 
-from fastapi import (
-    APIRouter,
-    HTTPException,
-    Request,
-    Response,
-    status,
-)
+from fastapi import APIRouter, Request, Response, status
 
 from orchestrator.db import SessionDep
-from orchestrator.exceptions import NotNullError
 from orchestrator.utils import add_allow_header_to_resp
 from orchestrator.v1 import TEMPLATES_PREFIX
 from orchestrator.v1.schemas import ErrorMessage, ItemID
@@ -60,12 +53,10 @@ def available_methods(response: Response) -> None:
 @template_router.post(
     "/",
     summary="Create a new template",
-    description="Add a new template to the DB. Check if a template's "
-    "subject, for this issuer, already exists in the DB. If the sub already exists, "
-    "the endpoint raises a 409 error.",
+    description="Add a new template to the DB. Check if the template's hashed version "
+    "already exists in the DB. If so, the endpoint raises a 409 error.",
     status_code=status.HTTP_201_CREATED,
     responses={
-        status.HTTP_400_BAD_REQUEST: {"model": ErrorMessage},
         status.HTTP_409_CONFLICT: {"model": ErrorMessage},
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"model": ErrorMessage},
     },
@@ -78,40 +69,34 @@ def create_template(
 ) -> ItemID:
     """Create a new template in the system.
 
-    Logs the creation attempt and result. If the template already exists,
-    returns a 409 Conflict response. If no body is given, it retrieves from the access
-    token the template data.
+    If the template already exists, returns a 409 Conflict response.
+    When adding a new entry retrieve from the template's content useful metadata.
 
     Args:
         request (Request): The incoming HTTP request object, used for logging.
-        template (TemplateCreate | None): The template data to create.
-        current_user (CurrenUserDep): The DB user matching the current user retrieved
-            from the access token.
-        session (SessionDep): The database session dependency.
+        session (Session): The database session dependency.
+        current_user (User): The DB user matching the current user retrieved from the
+            access token.
+        template (TemplateCreate): The template data to create.
 
     Returns:
-        ItemID: A dictionary containing the ID of the created template on
-        success.
+        ItemID: A dictionary containing the ID of the created template on success.
 
     Raises:
         401 Unauthorized: If the user is not authenticated (handled by dependencies).
         403 Forbidden: If the user does not have permission (handled by dependencies).
-        409 Conflict: If the user already exists (handled below).
+        409 Conflict: If the template already exists (handled by exception handlers).
+        422 Unprocessable Entity: If the input values can't be parsed (handled by
+            fastapi).
 
     """
     msg = "Creating template with params: "
     msg += f"{template.model_dump_json(exclude={'hash_content', 'content'})}"
     request.state.logger.info(msg)
     request.state.logger.debug(template.content)
-    try:
-        db_template = add_template(
-            session=session, template=template, created_by=current_user
-        )
-    except NotNullError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=e.message
-        ) from e
+    db_template = add_template(
+        session=session, template=template, created_by=current_user
+    )
     msg = "Template created: "
     msg += f"{db_template.model_dump_json(exclude={'hash_content', 'content'})}"
     request.state.logger.info(msg)
@@ -121,27 +106,25 @@ def create_template(
 @template_router.get(
     "/",
     summary="Retrieve templates",
-    description="Retrieve a paginated list of templates.",
+    description="Retrieve a paginated list of templates. It is possible to filter and "
+    "sort by any field of the entity. It is possible to paginate the returned list.",
 )
 def retrieve_templates(
     request: Request, session: SessionDep, params: TemplateQueryDep
 ) -> TemplateList:
     """Retrieve a paginated list of templates based on query parameters.
 
-    Logs the query parameters and the number of templates retrieved. Fetches
-    templates from the database using pagination, sorting, and additional
-    filters provided in the query parameters. Returns the templates in a
-    paginated response format.
+    Fetches users from the database using pagination, sorting, and additional filters
+    provided in the query parameters. Returns the users in a paginated response format.
 
     Args:
         request (Request): The HTTP request object, used for logging and URL generation.
-        params (TemplateQueryDep): Dependency containing query parameters for
-            filtering, sorting, and pagination.
-        session (SessionDep): Database session dependency.
+        session (Session): Database session dependency.
+        params (TemplateQuery): Dependency containing query parameters for filtering,
+            sorting, and pagination.
 
     Returns:
-        TemplateList: A paginated list of templates matching the query
-            parameters.
+        TemplateList: A paginated list of templates matching the query parameters.
 
     Raises:
         401 Unauthorized: If the user is not authenticated (handled by dependencies).
@@ -181,31 +164,28 @@ def retrieve_templates(
 @template_router.get(
     "/{template_id}",
     summary="Retrieve template with given ID",
-    description="Check if the given template's ID already exists in the DB "
-    "and return it. If the template does not exist in the DB, the endpoint "
-    "raises a 404 error.",
+    description="Check if the given template's ID already exists in the DB and return "
+    "it. If the template does not exist in the DB, the endpoint raises a 404 error.",
     responses={status.HTTP_404_NOT_FOUND: {"model": ErrorMessage}},
 )
 def retrieve_template(request: Request, template: TemplateRequiredDep) -> TemplateRead:
     """Retrieve a template by their unique identifier.
 
-    Logs the retrieval attempt, checks if the template exists, and returns the
-    template object if found. If the template does not exist, logs an
-    error and returns a JSON response with a 404 status.
+    Checks if the template exists, and returns the template object if found. If the
+    template does not exist, logs an error and returns a JSON response with a 404
+    status.
 
     Args:
         request (Request): The incoming HTTP request object.
-        template_id (uuid.UUID): The unique identifier of the template to retrieve.
-        template (Template | None): The template object, if found.
+        template (Template): The template object, if found.
 
     Returns:
         Template: The template object if found.
-        JSONResponse: A 404 response if the template does not exist.
 
     Raises:
         401 Unauthorized: If the user is not authenticated (handled by dependencies).
         403 Forbidden: If the user does not have permission (handled by dependencies).
-        404 Not Found: If the user does not exist (handled below).
+        404 Not Found: If the template does not exist (handled by exception handlers).
 
     """
     msg = f"Template with ID '{template.id!s}' found: {template.model_dump_json()}"
@@ -222,10 +202,10 @@ def retrieve_template(request: Request, template: TemplateRequiredDep) -> Templa
 @template_router.patch(
     "/{template_id}",
     summary="Update template with the given id",
-    description="Update a template with the given id in the DB",
+    description="Update the metadata of a template with the given ID in the DB. "
+    "If the template does not exist raise 404 error",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_400_BAD_REQUEST: {"model": ErrorMessage},
         status.HTTP_404_NOT_FOUND: {"model": ErrorMessage},
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"model": ErrorMessage},
     },
@@ -241,15 +221,20 @@ def edit_template(
 
     Args:
         request (Request): The current request object.
-        session (SessionDep): The database session dependency.
-        template (uuid.UUID): The unique identifier of the template to update.
+        session (Session): The database session dependency.
+        current_user (User): The DB user matching the current user retrieved from the
+            access token.
+        template (Template): The unique identifier of the template to update.
         new_data (UserCreate): The new template data to update.
-        current_user (CurrenUserDep): The DB user matching the current user retrieved
-            from the access token.
+
+    Returns:
+        None
 
     Raises:
-        HTTPException: If the template is not found or another update error
-        occurs.
+        401 Unauthorized: If the user is not authenticated (handled by dependencies).
+        403 Forbidden: If the user does not have permission (handled by dependencies).
+        404 Not Found: If the template does not exist (handled by exception handlers).
+        422 Unprocessable Entity: If the input data are not valid (handled by fastapi).
 
     """
     msg = f"Update template with ID '{template.id!s}'"
@@ -263,11 +248,11 @@ def edit_template(
 
 @template_router.delete(
     "/{template_id}",
-    summary="Delete template with given sub",
-    description="Delete a template with the given subject, for this issuer, "
-    "from the DB.",
+    summary="Delete template with given ID",
+    description="Delete a template with the given ID from the DB. If the template is "
+    "used by one or more deployments in the DB, they can't be deleted.",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses={status.HTTP_400_BAD_REQUEST: {"model": ErrorMessage}},
+    responses={status.HTTP_409_CONFLICT: {"model": ErrorMessage}},
 )
 def remove_template(
     request: Request, session: SessionDep, template_id: uuid.UUID, template: TemplateDep
@@ -279,10 +264,10 @@ def remove_template(
 
     Args:
         request (Request): The HTTP request object, used for logging and request context
-        session (SessionDep): The database session dependency used to perform the
+        session (Session): The database session dependency used to perform the
             deletion.
-        template_id (uuid.UUID): The unique identifier of the template to be removed
-        template (uuid.UUID): The unique identifier of the template to be removed
+        template_id (uuid.UUID): The unique identifier of the template to be removed.
+        template (Template | None): The DB entity to be removed.
 
     Returns:
         None
@@ -290,11 +275,13 @@ def remove_template(
     Raises:
         401 Unauthorized: If the user is not authenticated (handled by dependencies).
         403 Forbidden: If the user does not have permission (handled by dependencies).
+        409 Conflict: If the template has related entities and can't be deleted (handled
+            by dependencies).
 
     """
     msg = f"Delete template with ID '{template_id!s}'"
     request.state.logger.info(msg)
     if template is not None:
-        delete_template(session=session, template_id=template_id)
+        delete_template(session=session, template=template)
     msg = f"Template with ID '{template_id!s}' deleted"
     request.state.logger.info(msg)

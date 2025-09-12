@@ -1,4 +1,4 @@
-"""User CRUD utility functions for fed-mgr service.
+"""User CRUD utility functions for orchestrator service.
 
 This module provides functions to retrieve, list, add, and delete users in the database.
 It wraps generic CRUD operations with user-specific logic and exception handling.
@@ -23,8 +23,8 @@ def get_user(*, session: SessionDep, user_id: uuid.UUID) -> User | None:
     """Retrieve a user by their unique user_id from the database.
 
     Args:
-        session: The database session dependency.
-        user_id: The UUID of the user to retrieve. If present, kwargs is ignored.
+        session (Session): The database session dependency.
+        user_id (uuid.UUID): The UUID of the user to retrieve.
 
     Returns:
         User instance if found, otherwise None.
@@ -42,10 +42,10 @@ def get_users(
     from the showed users since they are paginated.
 
     Args:
-        session: The database session.
-        skip: Number of users to skip (for pagination).
-        limit: Maximum number of users to return.
-        sort: Field name to sort by (prefix with '-' for descending).
+        session (Session): The database session.
+        skip (int): Number of users to skip (for pagination).
+        limit (int): Maximum number of users to return.
+        sort (str): Field name to sort by (prefix with '-' for descending).
         **kwargs: Additional filter parameters for narrowing the search.
 
     Returns:
@@ -61,25 +61,28 @@ def add_user(*, session: Session, user: UserCreate) -> User:
     """Add a new user to the database.
 
     Args:
-        session: The database session.
-        user: The UserCreate model instance to add.
+        session (Session): The database session.
+        user (UserCreate): The model instance to add.
 
     Returns:
-        User: The identifier of the newly created user.
+        User: The newly created DB entity.
 
     """
     return add_item(session=session, entity=User, **user.model_dump())
 
 
 def update_user(*, session: Session, user: User, new_data: UserUpdate) -> None:
-    """Update a user by their unique user_id from the database.
+    """Update a user retrieved from the database.
 
-    Completely override a user entity.
+    Extend the existing entity with new data (ovverrides only not None values)
 
     Args:
-        session: The database session.
-        user: The UUID of the user to delete.
-        new_data: The new data to update the user with.
+        session (Session): The database session.
+        user (User): The DB entity to update.
+        new_data (UserUpdate): The new data to update the user with.
+
+    Returns:
+        None
 
     """
     return update_item(
@@ -91,29 +94,32 @@ def update_user(*, session: Session, user: User, new_data: UserUpdate) -> None:
 
 
 def delete_user(*, session: Session, user: User) -> None:
-    """Delete a user by their unique user_id from the database.
+    """Delete a user from the database.
 
     Args:
-        session: The database session.
-        user: The UUID of the user to delete.
+        session (Session): The database session.
+        user (User): The DB entity to delete.
+
+    Returns:
+        None
 
     """
     return delete_item(session=session, entity=User, item=user)
 
 
-def create_fake_user(session: Session):
+def create_fake_user(session: Session) -> User:
     """Create a fake user in the database for testing or development purposes.
 
     If the fake user already exists return the ID of the existing user.
 
     Args:
-        session: An active SQLModel session for database operations.
+        session (Session): The database session.
 
     Returns:
-        the id of the fake user.
+        User: the DB entry of the fake user.
 
     """
-    _, tot_items = get_users(
+    users, tot_items = get_users(
         session=session,
         skip=0,
         limit=1,
@@ -122,7 +128,7 @@ def create_fake_user(session: Session):
         issuer=FAKE_USER_ISSUER,
     )
     if tot_items == 0:
-        add_user(
+        return add_user(
             session=session,
             user=UserCreate(
                 name=FAKE_USER_NAME,
@@ -131,14 +137,17 @@ def create_fake_user(session: Session):
                 issuer=FAKE_USER_ISSUER,
             ),
         )
+    return users[0]
 
 
 def delete_fake_user(session: Session) -> None:
     """Delete the fake user in the database used for testing or development purposes.
 
     Args:
-        session: An active SQLModel session for database operations.
-        user_id: ID of the user to delete.
+        session (Session): The database session.
+
+    Returns:
+        None
 
     """
     users, tot_items = get_users(
@@ -150,4 +159,4 @@ def delete_fake_user(session: Session) -> None:
         issuer=FAKE_USER_ISSUER,
     )
     if tot_items > 0:
-        delete_user(session=session, user=users[0])
+        return delete_user(session=session, user=users[0])

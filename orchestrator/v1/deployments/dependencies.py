@@ -1,4 +1,4 @@
-"""Dependencies for deployment operations in the federation manager."""
+"""Dependencies for deployment operations in the orchestrator."""
 
 import uuid
 from typing import Annotated
@@ -17,16 +17,14 @@ def deployment_required(
 ) -> Deployment:
     """Dependency to ensure the specified deployment exists.
 
-    Raises an HTTP 404 error if the deployment with the given deployment_id does not
-    exist.
-
     Args:
-        request: The current FastAPI request object.
-        deployment_id: The UUID of the deployment to check.
-        deployment: The Deployment instance if found, otherwise None.
+        request (Request): The current FastAPI request object.
+        deployment_id (uuid.UUID): The UUID of the deployment to check.
+        deployment (Deployment | None): The deployment instance if found, otherwise
+            None.
 
     Raises:
-        HTTPException: If the deployment does not exist.
+        ItemNotFoundError: If the deployment does not exist.
 
     """
     if deployment is None:

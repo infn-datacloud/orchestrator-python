@@ -20,7 +20,7 @@ from orchestrator.v1.schemas import (
 class UserBase(SQLModel):
     """Schema with the basic parameters of the User entity."""
 
-    sub: Annotated[str, Field(description="Issuer's subject associated with this user")]
+    sub: Annotated[str, Field(description="Subject associated with this user")]
     name: Annotated[str, Field(description="User name and surname")]
     email: Annotated[
         EmailStr, Field(sa_type=AutoString, description="User email address")
@@ -29,11 +29,11 @@ class UserBase(SQLModel):
 
 
 class UserCreate(UserBase):
-    """Schema used to define request's body parameters of a POST on 'users' endpoint."""
+    """Schema used to define request's body parameters of a POST on /users."""
 
 
 class UserUpdate(SQLModel):
-    """Schema used to define request's body parameters of a PATCH on a specific user."""
+    """Schema used to define request's body parameters of a PATCH on /users."""
 
     public_ssh_key: Annotated[
         str | None, Field(default=None, description="User's public ssh key")
@@ -60,7 +60,7 @@ class UserList(PaginatedList):
 
 
 class UserQuery(CreationTimeQuery, PaginationQuery, SortQuery, UserUpdate):
-    """Schema used to define request's body parameters."""
+    """Schema used to define request's parameters for query filtering."""
 
     sub: Annotated[
         str | None,

@@ -83,11 +83,11 @@ class DeploymentBase(SQLModel):
 
 
 class DeploymentCreate(DeploymentBase):
-    """Schema used to define request's body parameters of a POST on 'deployments'."""
+    """Schema used to define request's body parameters of a POST on /deployments."""
 
 
 class DeploymentUpdate(SQLModel):
-    """Schema used to define request's body parameters of a PATCH on a deployment."""
+    """Schema used to define request's body parameters of a PATCH on /deployments."""
 
     user_group: Annotated[
         str | None,

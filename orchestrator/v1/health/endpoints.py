@@ -18,19 +18,19 @@ health_router = APIRouter(prefix=HEALTH_PREFIX, tags=["health"])
     "/", summary="Get application health", response_model_exclude_none=True
 )
 async def liveness_probe(
-    request: Request, settings: SettingsDep, session: SessionDep
+    request: Request, session: SessionDep, settings: SettingsDep
 ) -> Health:
-    """Restrieve service healthness.
+    """Retrieve service healthness.
 
     Check connection with related services.
 
     Args:
         request (Request): The incoming HTTP request object, used for logging.
-        settings (SettingsDep): Dependency containing app settings.
         session (SessionDep): Database session dependency.
+        settings (SettingsDep): Dependency containing app settings.
 
     Returns:
-        Health: single connection status and general service status.
+        Health: single connections status and general service status.
 
     """
     data = {}

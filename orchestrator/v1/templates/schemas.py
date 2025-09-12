@@ -21,6 +21,9 @@ from orchestrator.v1.schemas import (
 def tosca_is_yaml(value: str) -> str:
     """Verify that TOSCA template is a YAML file.
 
+    Args:
+        value (str): TOSCA template string.
+
     Returns:
         str: the input value
 
@@ -46,7 +49,7 @@ class TemplateBase(SQLModel):
 
 
 class TemplateCreate(TemplateBase):
-    """Schema used to define request's body parameters of a POST on 'users' endpoint."""
+    """Schema used to define request's body parameters of a POST on /templates."""
 
     @computed_field
     @property
@@ -57,34 +60,34 @@ class TemplateCreate(TemplateBase):
     @computed_field
     @property
     def name(self) -> str | None:
-        """Calculate hash for TOSCA template content."""
+        """Retrieve the template name from the content's metadata."""
         data = yaml.safe_load(self.content)
         return data.get("metadata", {}).get("template_name", None)
 
     @computed_field
     @property
     def version(self) -> str | None:
-        """Calculate hash for TOSCA template content."""
+        """Retrieve the template version from the content's metadata."""
         data = yaml.safe_load(self.content)
         return data.get("metadata", {}).get("template_version", None)
 
     @computed_field
     @property
     def target_provider_type(self) -> str | None:
-        """Calculate hash for TOSCA template content."""
+        """Retrieve the template target provider type from the content's metadata."""
         data = yaml.safe_load(self.content)
         return data.get("metadata", {}).get("target_provider_type", None)
 
     @computed_field
     @property
     def tosca_definitions_version(self) -> str | None:
-        """Calculate hash for TOSCA template content."""
+        """Retrieve the TOSCA version from the content's metadata."""
         data = yaml.safe_load(self.content)
         return data.get("tosca_definitions_version", None)
 
 
 class TemplateUpdate(SQLModel):
-    """Schema used to define request's body parameters of a PATCH on a specific user."""
+    """Schema used to define request's body parameters of a PATCH on /templates."""
 
     name: Annotated[
         str | None, Field(default=None, description="TOSCA template's name")
@@ -108,12 +111,12 @@ class TemplateList(PaginatedList):
     """Schema used to return paginated list of Templates' data to clients."""
 
     data: Annotated[
-        list[TemplateRead], Field(default_factory=list, description="List of users")
+        list[TemplateRead], Field(default_factory=list, description="List of templates")
     ]
 
 
 class TemplateQuery(CreationTimeQuery, PaginationQuery, SortQuery, TemplateUpdate):
-    """Schema used to define request's body parameters."""
+    """Schema used to define request's parameters for query filtering."""
 
     content: Annotated[
         str | None,

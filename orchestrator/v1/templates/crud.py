@@ -1,7 +1,7 @@
-"""Template CRUD utility functions for fed-mgr service.
+"""Template CRUD utility functions for orchestrator service.
 
-This module provides functions to retrieve, list, add, and delete identity providers in
-the database. It wraps generic CRUD operations with identity providers-specific logic
+This module provides functions to retrieve, list, add, and delete templates in
+the database. It wraps generic CRUD operations with templates-specific logic
 and exception handling.
 """
 
@@ -16,11 +16,11 @@ from orchestrator.v1.templates.schemas import TemplateCreate, TemplateUpdate
 
 
 def get_template(*, session: SessionDep, template_id: uuid.UUID) -> Template | None:
-    """Retrieve an identity provider by their unique template_id from the database.
+    """Retrieve a template by their unique template_id from the database.
 
     Args:
-        template_id: The UUID of the identity provider to retrieve.
-        session: The database session dependency.
+        session (Session): The database session dependency.
+        template_id (uuid.UUID): The UUID of the template to retrieve.
 
     Returns:
         Template instance if found, otherwise None.
@@ -32,21 +32,20 @@ def get_template(*, session: SessionDep, template_id: uuid.UUID) -> Template | N
 def get_templates(
     *, session: Session, skip: int, limit: int, sort: str, **kwargs
 ) -> tuple[list[Template], int]:
-    """Retrieve a paginated and sorted list of identity providers from the database.
+    """Retrieve a paginated and sorted list of templates from the database.
 
     The total count corresponds to the total count of returned values which may differs
-    from the showed identity providers since they are paginated.
+    from the showed templates since they are paginated.
 
     Args:
-        session: The database session.
-        skip: Number of identity providers to skip (for pagination).
-        limit: Maximum number of identity providers to return.
-        sort: Field name to sort by (prefix with '-' for descending).
+        session (Session): The database session.
+        skip (int): Number of templates to skip (for pagination).
+        limit (int): Maximum number of templates to return.
+        sort (str): Field name to sort by (prefix with '-' for descending).
         **kwargs: Additional filter parameters for narrowing the search.
 
     Returns:
-        Tuple of (list of Template instances, total count of matching identity
-        providers).
+        Tuple of (list of User instances, total count of matching templates).
 
     """
     return get_items(
@@ -62,15 +61,15 @@ def get_templates(
 def add_template(
     *, session: Session, template: TemplateCreate, created_by: User
 ) -> Template:
-    """Add a new identity provider to the database.
+    """Add a new template to the database.
 
     Args:
-        session: The database session.
-        template: The TemplateCreate model instance to add.
-        created_by: The User instance representing the creator of the identity provider.
+        session (Session): The database session.
+        template (TemplateCreate): The model instance to add.
+        created_by (User): The user issuing the operation.
 
     Returns:
-        Template: The identifier of the newly created identity provider.
+        Template: The newly created DB entity.
 
     """
     return add_item(
@@ -89,15 +88,18 @@ def update_template(
     new_data: TemplateUpdate,
     updated_by: User,
 ) -> None:
-    """Update an identity provider by their unique template_id from the database.
+    """Update a template retrieved from the database.
 
-    Completely override an template entity.
+    Extend the existing entity with new data (ovverrides only not None values)
 
     Args:
-        session: The database session.
-        template: The UUID of the identity provider to update.
-        new_data: The new data to update the identity provider with.
-        updated_by: The User instance representing the updater of the identity provider.
+        session (Session): The database session.
+        template (Template): The DB entity to update.
+        new_data (TemplateUpdate): The new data to update the template with.
+        updated_by (User): The user issuing the operation
+
+    Returns:
+        None
 
     """
     return update_item(
@@ -110,11 +112,14 @@ def update_template(
 
 
 def delete_template(*, session: Session, template: Template) -> None:
-    """Delete a identity provider by their unique template_id from the database.
+    """Delete a template from the database.
 
     Args:
-        session: The database session.
-        template: The UUID of the identity provider to delete.
+        session (Session): The database session.
+        template (Template): The DB entity to delete.
+
+    Returns:
+        None
 
     """
-    delete_item(session=session, entity=Template, item=template)
+    return delete_item(session=session, entity=Template, item=template)

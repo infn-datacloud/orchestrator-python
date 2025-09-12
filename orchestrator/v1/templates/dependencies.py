@@ -1,4 +1,4 @@
-"""Dependencies for template operations in the federation manager."""
+"""Dependencies for template operations in the orchestrator."""
 
 import uuid
 from typing import Annotated
@@ -18,16 +18,13 @@ def template_required(
 ) -> Template:
     """Dependency to ensure the specified template exists.
 
-    Raises an HTTP 404 error if the template with the given template_id does not
-    exist.
-
     Args:
-        request: The current FastAPI request object.
-        template_id: The UUID of the template to check.
-        template: The Template instance if found, otherwise None.
+        request (Request): The current FastAPI request object.
+        template_id (uuid.UUID): The UUID of the template to check.
+        template (Template | None): The template instance if found, otherwise None.
 
     Raises:
-        HTTPException: If the template does not exist.
+        ItemNotFoundError: If the template does not exist.
 
     """
     if template is None:

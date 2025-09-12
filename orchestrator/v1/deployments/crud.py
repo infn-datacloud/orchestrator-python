@@ -1,7 +1,7 @@
-"""Deployment CRUD utility functions for fed-mgr service.
+"""Deployment CRUD utility functions for orchestrator service.
 
-This module provides functions to retrieve, list, add, and delete identity providers in
-the database. It wraps generic CRUD operations with identity providers-specific logic
+This module provides functions to retrieve, list, add, and delete deployments in
+the database. It wraps generic CRUD operations with deployments-specific logic
 and exception handling.
 """
 
@@ -18,11 +18,11 @@ from orchestrator.v1.models import Deployment, User
 def get_deployment(
     *, session: SessionDep, deployment_id: uuid.UUID
 ) -> Deployment | None:
-    """Retrieve an identity provider by their unique deployment_id from the database.
+    """Retrieve a deployment by their unique deployment_id from the database.
 
     Args:
-        deployment_id: The UUID of the identity provider to retrieve.
-        session: The database session dependency.
+        session (Session): The database session dependency.
+        deployment_id (uuid.UUID): The UUID of the deployment to retrieve.
 
     Returns:
         Deployment instance if found, otherwise None.
@@ -34,21 +34,20 @@ def get_deployment(
 def get_deployments(
     *, session: Session, skip: int, limit: int, sort: str, **kwargs
 ) -> tuple[list[Deployment], int]:
-    """Retrieve a paginated and sorted list of identity providers from the database.
+    """Retrieve a paginated and sorted list of deployments from the database.
 
     The total count corresponds to the total count of returned values which may differs
-    from the showed identity providers since they are paginated.
+    from the showed deployments since they are paginated.
 
     Args:
-        session: The database session.
-        skip: Number of identity providers to skip (for pagination).
-        limit: Maximum number of identity providers to return.
-        sort: Field name to sort by (prefix with '-' for descending).
+        session (Session): The database session.
+        skip (int): Number of deployments to skip (for pagination).
+        limit (int): Maximum number of deployments to return.
+        sort (str): Field name to sort by (prefix with '-' for descending).
         **kwargs: Additional filter parameters for narrowing the search.
 
     Returns:
-        Tuple of (list of Deployment instances, total count of matching identity
-        providers).
+        Tuple of (list of User instances, total count of matching deployments).
 
     """
     return get_items(
@@ -64,15 +63,15 @@ def get_deployments(
 def add_deployment(
     *, session: Session, deployment: DeploymentCreate, created_by: User
 ) -> Deployment:
-    """Add a new identity provider to the database.
+    """Add a new deployment to the database.
 
     Args:
-        session: The database session.
-        deployment: The DeploymentCreate model instance to add.
-        created_by: The User instance representing the creator of the identity provider.
+        session (Session): The database session.
+        deployment (DeploymentCreate): The model instance to add.
+        created_by (User): The user issuing the operation.
 
     Returns:
-        Deployment: The identifier of the newly created identity provider.
+        Deployment: The newly created DB entity.
 
     """
     return add_item(
@@ -91,15 +90,18 @@ def update_deployment(
     new_data: DeploymentUpdate,
     updated_by: User,
 ) -> None:
-    """Update an identity provider by their unique deployment_id from the database.
+    """Update a deployment retrieved from the database.
 
-    Completely override an deployment entity.
+    Extend the existing entity with new data (ovverrides only not None values)
 
     Args:
-        session: The database session.
-        deployment: The UUID of the identity provider to update.
-        new_data: The new data to update the identity provider with.
-        updated_by: The User instance representing the updater of the identity provider.
+        session (Session): The database session.
+        deployment (Deployment): The DB entity to update.
+        new_data (DeploymentUpdate): The new data to update the deployment with.
+        updated_by (User): The user issuing the operation
+
+    Returns:
+        None
 
     """
     return update_item(
@@ -111,12 +113,22 @@ def update_deployment(
     )
 
 
-def delete_deployment(*, session: Session, deployment_id: uuid.UUID) -> None:
-    """Delete a identity provider by their unique deployment_id from the database.
+def delete_deployment(
+    *, session: Session, deployment: uuid.UUID, force: bool = False
+) -> None:
+    """Delete a deployment from the database.
 
     Args:
-        session: The database session.
-        deployment_id: The UUID of the identity provider to delete.
+        session (Session): The database session.
+        deployment (Deployment): The DB entity to delete.
+        force (bool): If false, do not delete the DB entry but mark it as deleted.
+            If true, delete the DB entry.
+
+    Returns:
+        None
 
     """
-    delete_item(session=session, entity=Deployment, id=deployment_id)
+    if force:
+        return delete_item(session=session, entity=Deployment, item=deployment)
+    else:
+        ...

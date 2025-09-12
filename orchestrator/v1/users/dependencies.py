@@ -1,4 +1,4 @@
-"""Dependencies for user-related operations in the federation manager."""
+"""Dependencies for user operations in the orchestrator."""
 
 import uuid
 from typing import Annotated
@@ -15,18 +15,15 @@ UserDep = Annotated[User | None, Depends(get_user)]
 
 
 def user_required(request: Request, user_id: uuid.UUID, user: UserDep) -> User:
-    """Dependency to ensure the specified identity provider exists.
-
-    Raises an HTTP 404 error if the identity provider with the given idp_id does not
-    exist.
+    """Dependency to ensure the specified user exists.
 
     Args:
-        request: The current FastAPI request object.
-        user_id: The UUID of the user to check.
-        user: The User instance if found, otherwise None.
+        request (Request): The current FastAPI request object.
+        user_id (uuid.UUID): The UUID of the user to check.
+        user (User | None): The user instance if found, otherwise None.
 
     Raises:
-        HTTPException: If the user does not exist.
+        ItemNotFoundError: If the user does not exist.
 
     """
     if user is None:

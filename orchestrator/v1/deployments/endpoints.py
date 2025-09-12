@@ -2,16 +2,9 @@
 
 import uuid
 
-from fastapi import (
-    APIRouter,
-    HTTPException,
-    Request,
-    Response,
-    status,
-)
+from fastapi import APIRouter, Request, Response, status
 
 from orchestrator.db import SessionDep
-from orchestrator.exceptions import NotNullError
 from orchestrator.utils import add_allow_header_to_resp
 from orchestrator.v1 import TEMPLATES_PREFIX
 from orchestrator.v1.deployments.crud import (
@@ -20,7 +13,10 @@ from orchestrator.v1.deployments.crud import (
     get_deployments,
     update_deployment,
 )
-from orchestrator.v1.deployments.dependencies import DeploymentRequiredDep
+from orchestrator.v1.deployments.dependencies import (
+    DeploymentDep,
+    DeploymentRequiredDep,
+)
 from orchestrator.v1.deployments.schemas import (
     DeploymentCreate,
     DeploymentList,
@@ -102,15 +98,9 @@ def create_deployment(
     msg = f"Creating deployment with params: {deployment.model_dump_json()}"
     request.state.logger.info(msg)
     request.state.logger.debug(deployment.content)
-    try:
-        db_deployment = add_deployment(
-            session=session, deployment=deployment, created_by=current_user
-        )
-    except NotNullError as e:
-        request.state.logger.error(e.message)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=e.message
-        ) from e
+    db_deployment = add_deployment(
+        session=session, deployment=deployment, created_by=current_user
+    )
     msg = f"Deployment created: {db_deployment.model_dump_json()}"
     request.state.logger.info(msg)
     return {"id": db_deployment.id}
@@ -278,6 +268,7 @@ def remove_deployment(
     request: Request,
     session: SessionDep,
     deployment_id: uuid.UUID,
+    deployment: DeploymentDep,
     force: bool,
     unsecure: bool,
 ) -> None:
@@ -288,9 +279,10 @@ def remove_deployment(
 
     Args:
         request (Request): The HTTP request object, used for logging and request context
-        deployment_id (uuid.UUID): The unique identifier of the deployment to be removed
         session (SessionDep): The database session dependency used to perform the
             deletion.
+        deployment_id (uuid.UUID): The unique identifier of the deployment to be removed
+        deployment (uuid.UUID): The unique identifier of the deployment to be removed
         force (uuid.UUID): The unique identifier of the deployment to be removed
         unsecure (uuid.UUID): The unique identifier of the deployment to be removed
 
@@ -304,6 +296,6 @@ def remove_deployment(
     """
     msg = f"Delete deployment with ID '{deployment_id!s}'"
     request.state.logger.info(msg)
-    delete_deployment(session=session, deployment_id=deployment_id)
+    delete_deployment(session=session, deployment=deployment)
     msg = f"Deployment with ID '{deployment_id!s}' deleted"
     request.state.logger.info(msg)

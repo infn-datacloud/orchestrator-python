@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Security, status
 
 from orchestrator.auth import check_authorization
+from orchestrator.v1.deployments.endpoints import deployment_router
 from orchestrator.v1.health.endpoints import health_router
 from orchestrator.v1.schemas import ErrorMessage
 from orchestrator.v1.templates.endpoints import template_router
@@ -17,6 +18,7 @@ secured_router_v1 = APIRouter(
 )
 secured_router_v1.include_router(user_router)
 secured_router_v1.include_router(template_router)
+secured_router_v1.include_router(deployment_router)
 
 public_router_v1 = APIRouter()
 public_router_v1.include_router(health_router)

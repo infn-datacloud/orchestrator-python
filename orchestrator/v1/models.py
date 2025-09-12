@@ -8,6 +8,7 @@ from typing import Annotated
 
 from sqlmodel import Field, Relationship, UniqueConstraint
 
+from orchestrator.v1.deployments.schemas import DeploymentBase
 from orchestrator.v1.schemas import CreationTime, ItemID, UpdateTime
 from orchestrator.v1.templates.schemas import TemplateBase, TemplateUpdate
 from orchestrator.v1.users.schemas import UserBase, UserUpdate
@@ -23,6 +24,15 @@ class User(ItemID, CreationTime, UserBase, UserUpdate, table=True):
     updated_templates: list["Template"] = Relationship(
         back_populates="updated_by",
         sa_relationship_kwargs={"foreign_keys": "Template.updated_by_id"},
+    )
+
+    created_deployments: list["Deployment"] = Relationship(
+        back_populates="created_by",
+        sa_relationship_kwargs={"foreign_keys": "Deployment.created_by_id"},
+    )
+    updated_deployments: list["Deployment"] = Relationship(
+        back_populates="updated_by",
+        sa_relationship_kwargs={"foreign_keys": "Deployment.updated_by_id"},
     )
 
     __table_args__ = (
@@ -61,4 +71,26 @@ class Template(
     updated_by: User = Relationship(
         back_populates="updated_templates",
         sa_relationship_kwargs={"foreign_keys": "Template.updated_by_id"},
+    )
+
+
+class Deployment(ItemID, CreationTime, UpdateTime, DeploymentBase, table=True):
+    """Schema used to return Deployment's data to clients."""
+
+    created_by_id: Annotated[
+        uuid.UUID,
+        Field(foreign_key="user.id", description="User who created this item."),
+    ]
+    created_by: User = Relationship(
+        back_populates="created_deployments",
+        sa_relationship_kwargs={"foreign_keys": "Deployment.created_by_id"},
+    )
+
+    updated_by_id: Annotated[
+        uuid.UUID,
+        Field(foreign_key="user.id", description="User who last updated this item."),
+    ]
+    updated_by: User = Relationship(
+        back_populates="updated_deployments",
+        sa_relationship_kwargs={"foreign_keys": "Deployment.updated_by_id"},
     )

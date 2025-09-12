@@ -5,30 +5,32 @@ It wraps generic CRUD operations with user-specific logic and exception handling
 """
 
 import uuid
-from typing import Annotated
 
-from fastapi import Depends
 from sqlmodel import Session
 
-from orchestrator.auth import AuthenticationDep
 from orchestrator.db import SessionDep
 from orchestrator.v1.crud import add_item, delete_item, get_item, get_items, update_item
-from orchestrator.v1.schemas import ItemID
-from orchestrator.v1.users.schemas import User, UserCreate
+from orchestrator.v1.models import User
+from orchestrator.v1.users.schemas import UserCreate
+
+FAKE_USER_NAME = "fake_name"
+FAKE_USER_EMAIL = "fake@email.com"
+FAKE_USER_SUBJECT = "fake_sub"
+FAKE_USER_ISSUER = "http://fake.iss.it"
 
 
-def get_user(user_id: uuid.UUID, session: SessionDep) -> User | None:
+def get_user(*, session: SessionDep, user_id: uuid.UUID) -> User | None:
     """Retrieve a user by their unique user_id from the database.
 
     Args:
-        user_id: The UUID of the user to retrieve.
         session: The database session dependency.
+        user_id: The UUID of the user to retrieve. If present, kwargs is ignored.
 
     Returns:
         User instance if found, otherwise None.
 
     """
-    return get_item(session=session, entity=User, item_id=user_id)
+    return get_item(session=session, entity=User, id=user_id)
 
 
 def get_users(
@@ -55,7 +57,7 @@ def get_users(
     )
 
 
-def add_user(*, session: Session, user: UserCreate) -> ItemID:
+def add_user(*, session: Session, user: UserCreate) -> User:
     """Add a new user to the database.
 
     Args:
@@ -63,10 +65,10 @@ def add_user(*, session: Session, user: UserCreate) -> ItemID:
         user: The UserCreate model instance to add.
 
     Returns:
-        ItemID: The identifier of the newly created user.
+        User: The identifier of the newly created user.
 
     """
-    return add_item(session=session, entity=User, item=user)
+    return add_item(session=session, entity=User, **user.model_dump())
 
 
 def update_user(*, session: Session, user_id: uuid.UUID, new_user: UserCreate) -> None:
@@ -80,7 +82,9 @@ def update_user(*, session: Session, user_id: uuid.UUID, new_user: UserCreate) -
         new_user: The new data to update the user with.
 
     """
-    return update_item(session=session, entity=User, item_id=user_id, new_data=new_user)
+    return update_item(
+        session=session, entity=User, id=user_id, **new_user.model_dump()
+    )
 
 
 def delete_user(*, session: Session, user_id: uuid.UUID) -> None:
@@ -91,29 +95,56 @@ def delete_user(*, session: Session, user_id: uuid.UUID) -> None:
         user_id: The UUID of the user to delete.
 
     """
-    return delete_item(session=session, entity=User, item_id=user_id)
+    return delete_item(session=session, entity=User, id=user_id)
 
 
-def get_current_user(user_infos: AuthenticationDep, session: SessionDep) -> User | None:
-    """Retrieve from the DB the user matching the user submitting the request.
+def create_fake_user(session: Session):
+    """Create a fake user in the database for testing or development purposes.
+
+    If the fake user already exists return the ID of the existing user.
 
     Args:
-        user_infos: The authentication dependency containing user information.
-        session: The database session dependency.
+        session: An active SQLModel session for database operations.
 
     Returns:
-        User instance if found, otherwise None.
+        the id of the fake user.
 
     """
-    users, count = get_users(
+    _, tot_items = get_users(
         session=session,
         skip=0,
         limit=1,
         sort="-created_at",
-        sub=user_infos.user_info["sub"],
-        issuer=user_infos.user_info["iss"],
+        name=FAKE_USER_NAME,
+        issuer=FAKE_USER_ISSUER,
     )
-    return None if count == 0 else users[0]
+    if tot_items == 0:
+        add_user(
+            session=session,
+            user=UserCreate(
+                name=FAKE_USER_NAME,
+                email=FAKE_USER_EMAIL,
+                sub=FAKE_USER_SUBJECT,
+                issuer=FAKE_USER_ISSUER,
+            ),
+        )
 
 
-CurrenUserDep = Annotated[User, Depends(get_current_user)]
+def delete_fake_user(session: Session) -> None:
+    """Delete the fake user in the database used for testing or development purposes.
+
+    Args:
+        session: An active SQLModel session for database operations.
+        user_id: ID of the user to delete.
+
+    """
+    users, tot_items = get_users(
+        session=session,
+        skip=0,
+        limit=1,
+        sort="-created_at",
+        name=FAKE_USER_NAME,
+        issuer=FAKE_USER_ISSUER,
+    )
+    if tot_items > 0:
+        delete_user(session=session, user_id=users[0].id)

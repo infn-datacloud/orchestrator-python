@@ -2,12 +2,14 @@
 
 import math
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi.datastructures import URL
-from pydantic import AnyHttpUrl, computed_field
-from sqlmodel import Field, SQLModel, func
+from pydantic import AnyHttpUrl, BeforeValidator, computed_field
+from sqlmodel import TIMESTAMP, Field, SQLModel
+
+from orchestrator.utils import isoformat
 
 
 class ItemID(SQLModel):
@@ -30,6 +32,15 @@ class ItemDescription(SQLModel):
     """Schema for an item description."""
 
     description: Annotated[str, Field(default="", description="Item decription")]
+
+
+class DescriptionQuery(SQLModel):
+    """Schema for querying by the description."""
+
+    description: Annotated[
+        str | None,
+        Field(default=None, description="The description must contain this string"),
+    ]
 
 
 class SortQuery(SQLModel):
@@ -58,17 +69,19 @@ class Pagination(SQLModel):
     """With pagination details and total elements count."""
 
     size: Annotated[int, Field(default=5, ge=1, description="Chunk size.")]
-    number: Annotated[
-        int, Field(default=1, ge=1, description="Divide the list in chunks")
-    ]
+    number: Annotated[int, Field(default=1, ge=1, description="Current page index")]
     total_elements: Annotated[int, Field(description="Total number of items")]
 
     @computed_field
     @property
     def total_pages(self) -> int:
-        """Return the ceiling value of tot_items/page size.
+        """Return the ceiling value of total items/page size.
 
         If there are no elements, there is still one page but with no items.
+
+        Returns:
+            int: total pages
+
         """
         val = math.ceil(self.total_elements / self.size)
         return 1 if val == 0 else val
@@ -160,7 +173,8 @@ class CreationTime(SQLModel):
         datetime,
         Field(
             description="Date time of when the entity has been created",
-            default=func.now(),
+            default_factory=lambda: datetime.now(timezone.utc),
+            sa_type=TIMESTAMP(timezone=True),
         ),
     ]
 
@@ -186,6 +200,18 @@ class CreationTimeQuery(SQLModel):
     ]
 
 
+class CreationTimeRead(SQLModel):
+    """Schema used to format creation time."""
+
+    created_at: Annotated[
+        str,
+        Field(
+            description="Date time of when the entity has been created in ISO format"
+        ),
+        BeforeValidator(isoformat),
+    ]
+
+
 class Creator(SQLModel):
     """Schema for tracking the user who created an entity."""
 
@@ -204,7 +230,7 @@ class CreatorQuery(SQLModel):
     ]
 
 
-class Creation(CreationTime, Creator):
+class CreationRead(CreationTimeRead, Creator):
     """Schema for reading creation time and creator's user ID."""
 
 
@@ -219,7 +245,9 @@ class UpdateTime(SQLModel):
         datetime,
         Field(
             description="Datetime of when the entity has been updated",
-            default=func.now(),
+            default_factory=lambda: datetime.now(timezone.utc),
+            sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)},
+            sa_type=TIMESTAMP(timezone=True),
         ),
     ]
 
@@ -245,12 +273,23 @@ class UpdateQuery(SQLModel):
     ]
 
 
+class UpdateTimeRead(SQLModel):
+    """Schema used to format creation time."""
+
+    updated_at: Annotated[
+        str,
+        Field(
+            description="Date time of the last change made to the entity in ISO format"
+        ),
+        BeforeValidator(isoformat),
+    ]
+
+
 class Editor(SQLModel):
     """Schema for tracking the user who last edit an entity."""
 
     updated_by: Annotated[
-        uuid.UUID,
-        Field(description="User who last updated this item.", foreign_key="user.id"),
+        uuid.UUID, Field(description="User who last updated this item.")
     ]
 
 
@@ -263,7 +302,7 @@ class EditorQuery(SQLModel):
     ]
 
 
-class Editable(UpdateTime, Editor):
+class EditableRead(UpdateTimeRead, Editor):
     """Schema for reading update time and editor's user ID."""
 
 
@@ -274,5 +313,5 @@ class EditableQuery(UpdateQuery, EditorQuery):
 class ErrorMessage(SQLModel):
     """Schema returned when raising an HTTP exception such as 404."""
 
-    # title: Annotated[str, Field(description="Error title")]
+    status: Annotated[int, Field(description="Error code")]
     detail: Annotated[str, Field(description="Error detailed description")]

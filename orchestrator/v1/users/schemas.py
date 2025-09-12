@@ -4,12 +4,12 @@ from typing import Annotated
 
 from fastapi import Query
 from pydantic import AnyHttpUrl, EmailStr
-from sqlmodel import AutoString, Field, SQLModel, UniqueConstraint
+from sqlmodel import AutoString, Field, SQLModel
 
 from orchestrator.utils import HttpUrlType
 from orchestrator.v1.schemas import (
-    CreationTime,
     CreationTimeQuery,
+    CreationTimeRead,
     ItemID,
     PaginatedList,
     PaginationQuery,
@@ -23,32 +23,43 @@ class UserBase(SQLModel):
     sub: Annotated[str, Field(description="Issuer's subject associated with this user")]
     name: Annotated[str, Field(description="User name and surname")]
     email: Annotated[
-        EmailStr, Field(description="User email address", sa_type=AutoString)
+        EmailStr, Field(sa_type=AutoString, description="User email address")
     ]
-    issuer: Annotated[AnyHttpUrl, Field(description="Issuer URL", sa_type=HttpUrlType)]
-
-
-class User(ItemID, CreationTime, UserBase, table=True):
-    """Schema used to return User's data to clients."""
-
-    __table_args__ = (
-        UniqueConstraint("sub", "issuer", name="unique_sub_issuer_couple"),
-    )
-
-
-class UserList(PaginatedList):
-    """Schema used to return paginated list of Users' data to clients."""
-
-    data: Annotated[
-        list[User], Field(default_factory=list, description="List of users")
-    ]
+    issuer: Annotated[AnyHttpUrl, Field(sa_type=HttpUrlType, description="Issuer URL")]
 
 
 class UserCreate(UserBase):
     """Schema used to define request's body parameters of a POST on 'users' endpoint."""
 
 
-class UserQuery(CreationTimeQuery, PaginationQuery, SortQuery):
+class UserUpdate(SQLModel):
+    """Schema used to define request's body parameters of a PATCH on a specific user."""
+
+    public_ssh_key: Annotated[
+        str | None, Field(default=None, description="User's public ssh key")
+    ]
+    refresh_token: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description="User's refresh token, used for long running procedure",
+        ),
+    ]
+
+
+class UserRead(ItemID, CreationTimeRead, UserBase):
+    """Schema used to return User's data to clients."""
+
+
+class UserList(PaginatedList):
+    """Schema used to return paginated list of Users' data to clients."""
+
+    data: Annotated[
+        list[UserRead], Field(default_factory=list, description="List of users")
+    ]
+
+
+class UserQuery(CreationTimeQuery, PaginationQuery, SortQuery, UserUpdate):
     """Schema used to define request's body parameters."""
 
     sub: Annotated[

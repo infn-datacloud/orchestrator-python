@@ -3,14 +3,17 @@
 import urllib.parse
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlmodel import Session
 
 from orchestrator.auth import configure_flaat
 from orchestrator.config import API_V1_STR, get_settings
 from orchestrator.db import create_db_and_tables, dispose_engine
 from orchestrator.logger import get_logger
-from orchestrator.v1.router import router as router_v1
+from orchestrator.v1.router import public_router_v1, secured_router_v1
+from orchestrator.v1.users.crud import create_fake_user, delete_fake_user
 
 settings = get_settings()
 
@@ -53,8 +56,17 @@ async def lifespan(app: FastAPI):
     """
     logger = get_logger(settings)
     configure_flaat(settings, logger)
-    create_db_and_tables(logger)
+    engine = create_db_and_tables(logger)
+
+    # At application startup create or delete fake user based on authn mode
+    with Session(engine) as session:
+        if settings.AUTHN_MODE is None:
+            create_fake_user(session)
+        else:
+            delete_fake_user(session)
+
     yield {"logger": logger}
+
     dispose_engine(logger)
 
 
@@ -69,7 +81,7 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+    allow_origins=[str(origin).rstrip("/") for origin in settings.BACKEND_CORS_ORIGINS],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -82,5 +94,28 @@ sub_app_v1 = FastAPI(
     title=settings.PROJECT_NAME,
     version=version,
 )
-sub_app_v1.include_router(router_v1)
+sub_app_v1.include_router(secured_router_v1)
+sub_app_v1.include_router(public_router_v1)
+
+
+@sub_app_v1.exception_handler(HTTPException)
+def http_exception_handler(request: Request, exc: HTTPException):
+    """Handle HTTPException errors by returning a JSON response.
+
+    The new object contains the exception's status code and detail.
+
+    Args:
+        request (Request): The incoming HTTP request that caused the exception.
+        exc (HTTPException): The HTTP exception instance.
+
+    Returns:
+        JSONResponse: A JSON response with the status code and detail of the exception.
+
+    """
+    return JSONResponse(
+        content={"status": exc.status_code, "detail": exc.detail},
+        status_code=exc.status_code,
+    )
+
+
 app.mount(API_V1_STR, sub_app_v1)

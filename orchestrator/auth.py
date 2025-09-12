@@ -17,9 +17,6 @@ from orchestrator.config import (
     SettingsDep,
 )
 
-IDP_TIMEOUT = 5
-OPA_TIMEOUT = 5
-
 flaat = Flaat()
 
 
@@ -47,7 +44,7 @@ def configure_flaat(settings: Settings, logger: Logger) -> None:
         logger.warning("No authorization")
     else:
         logger.info("Authorization mode is %s", settings.AUTHZ_MODE.value)
-    flaat.set_request_timeout(IDP_TIMEOUT)
+    flaat.set_request_timeout(settings.IDP_TIMEOUT)
     flaat.set_trusted_OP_list([str(i) for i in settings.TRUSTED_IDP_LIST])
 
 
@@ -83,7 +80,7 @@ def check_flaat_authentication(
 
 def check_authentication(
     request: Request, authz_creds: HttpAuthzCredsDep, settings: SettingsDep
-) -> UserInfos | None:
+) -> UserInfos:
     """Check user authentication.
 
     Depending on the authentication mode specified in the settings, this function
@@ -108,7 +105,14 @@ def check_authentication(
         return check_flaat_authentication(
             authz_creds=authz_creds, logger=request.state.logger
         )
-    return None
+    request.state.logger.debug(
+        "No authentication mode. Providing fake user credentials"
+    )
+    return UserInfos(
+        access_token_info=None,
+        user_info={"sub": "fake_sub", "iss": "http://localhost/"},
+        introspection_info=None,
+    )
 
 
 AuthenticationDep = Annotated[UserInfos, Security(check_authentication)]
@@ -147,37 +151,39 @@ async def check_opa_authorization(
     }
     try:
         logger.debug("Sending user's data to OPA")
-        resp = requests.post(settings.OPA_AUTHZ_URL, json=data, timeout=OPA_TIMEOUT)
-        match resp.status_code:
-            case status.HTTP_200_OK:
-                resp = resp.json().get("result", {"allow": False})
-                if resp["allow"]:
-                    return
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Unauthorized to perform this operation",
-                )
-            case status.HTTP_400_BAD_REQUEST:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Authentication failed: Bad request sent to OPA server",
-                )
-            case status.HTTP_500_INTERNAL_SERVER_ERROR:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Authentication failed: OPA server internal error",
-                )
-            case _:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Authentication failed: OPA unexpected response code "
-                    f"'{resp.status_code}'",
-                )
+        resp = requests.post(
+            settings.OPA_AUTHZ_URL, json=data, timeout=settings.OPA_TIMEOUT
+        )
     except (requests.Timeout, ConnectionError) as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail="Authentication failed: OPA server is not reachable",
         ) from e
+    match resp.status_code:
+        case status.HTTP_200_OK:
+            resp = resp.json().get("result", {"allow": False})
+            if resp["allow"]:
+                return
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized to perform this operation",
+            )
+        case status.HTTP_400_BAD_REQUEST:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authentication failed: Bad request sent to OPA server",
+            )
+        case status.HTTP_500_INTERNAL_SERVER_ERROR:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authentication failed: OPA server internal error",
+            )
+        case _:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authentication failed: OPA unexpected response code "
+                f"'{resp.status_code}'",
+            )
 
 
 async def check_authorization(

@@ -4,7 +4,8 @@ from logging import Logger
 from typing import Annotated
 
 from fastapi import Depends
-from sqlmodel import Session, SQLModel, create_engine
+from sqlalchemy import Engine
+from sqlmodel import Session, SQLModel, create_engine, text
 
 from orchestrator.config import get_settings
 
@@ -16,7 +17,7 @@ if settings.DB_URL.startswith("sqlite"):
 engine = create_engine(settings.DB_URL, connect_args=connect_args, echo=settings.DB_ECO)
 
 
-def create_db_and_tables(logger: Logger) -> None:
+def create_db_and_tables(logger: Logger) -> Engine:
     """Connect to the database and create all tables defined in SQLModel metadata.
 
     Args:
@@ -28,6 +29,9 @@ def create_db_and_tables(logger: Logger) -> None:
     """
     logger.info("Connecting to database and generating tables")
     SQLModel.metadata.create_all(engine)
+    if engine.dialect.name == "sqlite":
+        with engine.connect() as connection:
+            connection.execute(text("PRAGMA foreign_keys=ON"))
     return engine
 
 

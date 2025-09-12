@@ -6,7 +6,7 @@ from typing import TypeVar
 
 import sqlalchemy
 import sqlalchemy.exc
-from sqlmodel import Session, SQLModel, asc, delete, desc, func, select
+from sqlmodel import Session, SQLModel, asc, desc, func, select
 
 from orchestrator.exceptions import ConflictError
 from orchestrator.utils import split_camel_case
@@ -311,29 +311,22 @@ def update_item(
         raise_from_integrity_error(entity=entity, session=session, error=e, **kwargs)
 
 
-def delete_item(*, entity: type[Entity], session: Session, **kwargs) -> None:
+def delete_item(*, entity: type[Entity], session: Session, item: Entity) -> None:
     """Delete an item by its ID from the database.
 
     Args:
         entity: The SQLModel entity class to delete from.
         session: The SQLModel session for database access.
-        **kwargs: Additional arguments used to filter entities.
+        item: Item to delete
 
     Raises:
         DeleteFailedError: If the item with the given ID can't be deleted.
 
     """
-    if "item_id" in kwargs.keys():
-        kwargs["id"] = kwargs.pop("item_id")
-
-    conditions = []
-    for k, v in kwargs.items():
-        conditions.append(entity.__table__.c.get(k) == v)
-
-    statement = delete(entity).where(sqlalchemy.and_(True, *conditions))
     try:
-        session.exec(statement)
+        session.delete(item)
+        session.commit()
     except sqlalchemy.exc.IntegrityError as e:
-        raise_from_integrity_error(entity=entity, session=session, error=e, **kwargs)
+        raise_from_integrity_error(entity=entity, session=session, error=e)
 
     session.commit()

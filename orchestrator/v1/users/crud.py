@@ -90,15 +90,15 @@ def update_user(*, session: Session, user: User, new_data: UserUpdate) -> None:
     )
 
 
-def delete_user(*, session: Session, user_id: uuid.UUID) -> None:
+def delete_user(*, session: Session, user: User) -> None:
     """Delete a user by their unique user_id from the database.
 
     Args:
         session: The database session.
-        user_id: The UUID of the user to delete.
+        user: The UUID of the user to delete.
 
     """
-    return delete_item(session=session, entity=User, id=user_id)
+    return delete_item(session=session, entity=User, item=user)
 
 
 def create_fake_user(session: Session):
@@ -150,4 +150,4 @@ def delete_fake_user(session: Session) -> None:
         issuer=FAKE_USER_ISSUER,
     )
     if tot_items > 0:
-        delete_user(session=session, user_id=users[0].id)
+        delete_user(session=session, user=users[0])

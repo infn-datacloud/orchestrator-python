@@ -109,12 +109,12 @@ def update_template(
     )
 
 
-def delete_template(*, session: Session, template_id: uuid.UUID) -> None:
+def delete_template(*, session: Session, template: Template) -> None:
     """Delete a identity provider by their unique template_id from the database.
 
     Args:
         session: The database session.
-        template_id: The UUID of the identity provider to delete.
+        template: The UUID of the identity provider to delete.
 
     """
-    delete_item(session=session, entity=Template, id=template_id)
+    delete_item(session=session, entity=Template, item=template)

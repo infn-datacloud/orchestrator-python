@@ -10,7 +10,7 @@ from orchestrator.utils import add_allow_header_to_resp
 from orchestrator.v1 import USERS_PREFIX
 from orchestrator.v1.schemas import ErrorMessage, ItemID
 from orchestrator.v1.users.crud import add_user, delete_user, get_users, update_user
-from orchestrator.v1.users.dependencies import UserRequiredDep
+from orchestrator.v1.users.dependencies import UserDep, UserRequiredDep
 from orchestrator.v1.users.schemas import (
     UserCreate,
     UserList,
@@ -216,7 +216,9 @@ def edit_user(
     status_code=status.HTTP_204_NO_CONTENT,
     responses={status.HTTP_400_BAD_REQUEST: {"model": ErrorMessage}},
 )
-def remove_user(request: Request, session: SessionDep, user_id: uuid.UUID) -> None:
+def remove_user(
+    request: Request, session: SessionDep, user_id: uuid.UUID, user: UserDep
+) -> None:
     """Remove a user from the system by their unique identifier.
 
     Logs the deletion process and delegates the actual removal to the `delete_user`
@@ -224,9 +226,10 @@ def remove_user(request: Request, session: SessionDep, user_id: uuid.UUID) -> No
 
     Args:
         request (Request): The HTTP request object, used for logging and request context
-        user_id (uuid.UUID): The unique identifier of the user to be removed.
         session (SessionDep): The database session dependency used to perform the
             deletion.
+        user_id (uuid.UUID): The unique identifier of the user to be removed.
+        user (uuid.UUID): The unique identifier of the user to be removed.
 
     Returns:
         None
@@ -238,6 +241,7 @@ def remove_user(request: Request, session: SessionDep, user_id: uuid.UUID) -> No
     """
     msg = f"Delete user with ID '{user_id!s}'"
     request.state.logger.info(msg)
-    delete_user(session=session, user_id=user_id)
+    if user is not None:
+        delete_user(session=session, user=user)
     msg = f"User with ID '{user_id!s}' deleted"
     request.state.logger.info(msg)

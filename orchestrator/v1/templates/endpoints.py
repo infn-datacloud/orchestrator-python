@@ -23,6 +23,7 @@ from orchestrator.v1.templates.crud import (
 )
 from orchestrator.v1.templates.dependencies import (
     TemplateCreateDep,
+    TemplateDep,
     TemplateRequiredDep,
 )
 from orchestrator.v1.templates.schemas import (
@@ -269,7 +270,7 @@ def edit_template(
     responses={status.HTTP_400_BAD_REQUEST: {"model": ErrorMessage}},
 )
 def remove_template(
-    request: Request, session: SessionDep, template_id: uuid.UUID
+    request: Request, session: SessionDep, template_id: uuid.UUID, template: TemplateDep
 ) -> None:
     """Remove a template from the system by their unique identifier.
 
@@ -278,9 +279,10 @@ def remove_template(
 
     Args:
         request (Request): The HTTP request object, used for logging and request context
-        template_id (uuid.UUID): The unique identifier of the template to be removed
         session (SessionDep): The database session dependency used to perform the
             deletion.
+        template_id (uuid.UUID): The unique identifier of the template to be removed
+        template (uuid.UUID): The unique identifier of the template to be removed
 
     Returns:
         None
@@ -292,6 +294,7 @@ def remove_template(
     """
     msg = f"Delete template with ID '{template_id!s}'"
     request.state.logger.info(msg)
-    delete_template(session=session, template_id=template_id)
+    if template is not None:
+        delete_template(session=session, template_id=template_id)
     msg = f"Template with ID '{template_id!s}' deleted"
     request.state.logger.info(msg)

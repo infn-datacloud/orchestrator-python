@@ -1,35 +1,27 @@
 ARG PYTHON_VERSION=3.12
-ARG POETRY_VERSION=1.8.3
+ARG PYTHON_VARIANT=slim
 
-# Create requirements.txt from poetry dependencies
-FROM ghcr.io/withlogicco/poetry:${POETRY_VERSION}-python-${PYTHON_VERSION}-slim AS requirements
+# Install poetry
+FROM python:${PYTHON_VERSION}-${PYTHON_VARIANT} AS poetry
 
-WORKDIR /tmp
+ARG POETRY_VERSION=2.1.4
 
-COPY ./pyproject.toml ./poetry.lock* /tmp/
+ENV POETRY_HOME=/opt/poetry \
+    POETRY_VERSION=${POETRY_VERSION} \
+    POETRY_VIRTUALENVS_CREATE=false \
+    PATH=${PATH}:/opt/poetry/bin
 
-RUN poetry export \
-    -f requirements.txt \
-    --output requirements.txt \
-    --without-hashes \
-    --without dev
+RUN python -m ensurepip --upgrade \
+    && python -m pip install --upgrade pip poetry setuptools
 
+# Stage used in production with the service
+FROM poetry
 
-# Stage used in production with no kubernetes
-FROM python:${PYTHON_VERSION}-slim AS production
+WORKDIR /app
 
-# Updating packages and installing libraries
-RUN apt-get update \
-    && apt-get clean
-
-WORKDIR /app/
-
-# Upgrade pip and install requirements
-COPY --from=requirements /tmp/requirements.txt /app/requirements.txt
-RUN pip install --upgrade pip \
-    && pip install --no-cache-dir --upgrade -r /app/requirements.txt
-
-# Copy the application code
+COPY ./pyproject.toml ./poetry.lock ./README.md /app/
 COPY ./orchestrator /app/orchestrator
+
+RUN poetry install --without dev --with rest-api,mysql
 
 CMD ["fastapi", "run", "/app/orchestrator/main.py", "--port", "80"]

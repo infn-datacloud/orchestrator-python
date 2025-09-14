@@ -44,7 +44,7 @@ def configure_flaat(settings: Settings, logger: Logger) -> None:
     else:
         logger.info("Authorization mode is %s", settings.AUTHZ_MODE.value)
     flaat.set_request_timeout(settings.IDP_TIMEOUT)
-    flaat.set_trusted_OP_list([str(i) for i in settings.TRUSTED_IDP_LIST])
+    flaat.set_trusted_OP_list([str(i.issuer) for i in settings.TRUSTED_IDP_LIST])
 
 
 security = HTTPBearer()

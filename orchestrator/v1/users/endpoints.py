@@ -1,15 +1,28 @@
 """Endpoints to manage User details."""
 
 import uuid
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status
+from pydantic import AfterValidator, Field
 
 from orchestrator.auth import AuthenticationDep
+from orchestrator.config import SettingsDep
 from orchestrator.db import SessionDep
-from orchestrator.utils import add_allow_header_to_resp
+from orchestrator.exceptions import ConflictError
+from orchestrator.utils import (
+    add_allow_header_to_resp,
+    create_ssh_keys,
+    verify_public_ssh_key,
+)
 from orchestrator.v1 import USERS_PREFIX
 from orchestrator.v1.schemas import ErrorMessage, ItemID
-from orchestrator.v1.users.crud import add_user, delete_user, get_users, update_user
+from orchestrator.v1.users.crud import (
+    add_user,
+    delete_user,
+    get_users,
+    update_user,
+)
 from orchestrator.v1.users.dependencies import UserDep, UserRequiredDep
 from orchestrator.v1.users.schemas import (
     UserCreate,
@@ -18,6 +31,7 @@ from orchestrator.v1.users.schemas import (
     UserRead,
     UserUpdate,
 )
+from orchestrator.vault import delete_private_key, store_private_key
 
 user_router = APIRouter(prefix=USERS_PREFIX, tags=["users"])
 
@@ -172,27 +186,90 @@ def retrieve_user(request: Request, user: UserRequiredDep) -> UserRead:
     return user
 
 
-@user_router.patch(
+@user_router.delete(
     "/{user_id}",
-    summary="Update user with given ID",
-    description="Update the public ssh key and refresh token of the user with the "
-    "given ID. If the user does not exist raise a 404 error.",
+    summary="Delete user with given ID",
+    description="Delete a user with the given ID from the DB. If the user has one or "
+    "more associated deployments or other entities in the DB, they can't be deleted.",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ErrorMessage},
+        status.HTTP_409_CONFLICT: {"model": ErrorMessage},
+    },
+)
+def remove_user(
+    request: Request,
+    session: SessionDep,
+    user_id: uuid.UUID | Literal["me"],
+    user: UserDep,
+) -> None:
+    """Remove a user from the system by their unique identifier.
+
+    Logs the deletion process and delegates the actual removal to the `delete_user`
+    function. A user can't remove themselves.
+
+    Args:
+        request (Request): The HTTP request object, used for logging and request context
+        session (Session): The database session dependency.
+        user_id (uuid.UUID | Literal["me"]): The unique identifier of the user to be
+            removed.
+        user (User | None): The DB entity to be removed.
+
+    Returns:
+        None
+
+    Raises:
+        400 Bad Request: If the user tries to delete themselves (handled below).
+        401 Unauthorized: If the user is not authenticated (handled by dependencies).
+        403 Forbidden: If the user does not have permission (handled by dependencies).
+        409 Conflict: If the user has related entities and can't be deleted (handled by
+            dependencies).
+
+    """
+    if user_id == "me":
+        msg = "User can't delete themselves."
+        request.state.logger.info(msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
+    msg = f"Delete user with ID '{user_id!s}'"
+    request.state.logger.info(msg)
+    if user is not None:
+        delete_user(session=session, user=user)
+    msg = f"User with ID '{user_id!s}' deleted"
+    request.state.logger.info(msg)
+
+
+@user_router.post(
+    "/{user_id}/ssh_keys",
+    summary="Generate user's private and public key",
+    description="Generate a private and public key. Store private key on vault and "
+    "update the public ssh key of the user with the given ID. If the any of the keys "
+    "have already been inserted, raise a 409 conflic error (they must be deleted). If "
+    "the user does not exist raise a 404 error.",
+    status_code=status.HTTP_201_CREATED,
+    responses={
         status.HTTP_404_NOT_FOUND: {"model": ErrorMessage},
+        status.HTTP_409_CONFLICT: {"model": ErrorMessage},
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"model": ErrorMessage},
     },
 )
-def edit_user(
-    request: Request, session: SessionDep, user: UserRequiredDep, new_data: UserUpdate
+def add_user_ssh_keys(
+    request: Request,
+    session: SessionDep,
+    user: UserRequiredDep,
+    credentials: AuthenticationDep,
+    settings: SettingsDep,
 ) -> None:
-    """Update an existing user with the given user ID.
+    """Add a private and public ssh key to an existing user.
+
+    Generate a private and public key. Store private key on vault if enabled.
+    Update the public ssh key of the user with the given ID.
 
     Args:
         request (Request): The current request object.
         session (Session): The database session dependency.
         user (User): The user entity to update, if it exists.
-        new_data (UserUpdate): The new user data to update.
+        credentials (UserInfos): User credentials.
+        settings (Settings): Application settings.
 
     Returns:
         None
@@ -201,38 +278,68 @@ def edit_user(
         401 Unauthorized: If the user is not authenticated (handled by dependencies).
         403 Forbidden: If the user does not have permission (handled by dependencies).
         404 Not Found: If the user does not exist (handled by exception handlers).
+        409 Conflict: If the user already has a public key (handled by exception
+            handlers).
         422 Unprocessable Entity: If the input data are not valid (handled by fastapi).
 
     """
-    msg = f"Update user with ID '{user.id!s}'"
+    msg = f"Add public key to user with ID '{user.id!s}'"
     request.state.logger.info(msg)
-    update_user(session=session, user=user, new_data=new_data)
-    msg = f"User with ID '{user.id!s}' updated"
+    if user.public_ssh_key is not None:
+        msg = f"User with ID '{user.id!s}' already has a public key assigned."
+        request.state.logger.error(msg)
+        raise ConflictError(msg)
+
+    private_key, public_key = create_ssh_keys()
+    if settings.VAULT_ENABLE:
+        store_private_key(
+            private_key=private_key,
+            issuer=credentials.issuer,
+            sub=credentials.subject,
+            access_token=credentials.access_token_info,
+            settings=settings,
+            logger=request.state.logger,
+        )
+    else:
+        msg = "Vault connection is not enabled. Private key will not be stored."
+        request.state.logger.warning(msg)
+
+    update_user(
+        session=session, user=user, new_data=UserUpdate(public_ssh_key=public_key)
+    )
+    msg = f"Public key added to user with ID '{user.id!s}'"
     request.state.logger.info(msg)
 
 
-@user_router.delete(
-    "/{user_id}",
-    summary="Delete user with given ID",
-    description="Delete a user with the given ID from the DB. If the user has one or "
-    "more associated deployments or other entities in the DB, they can't be deleted.",
-    status_code=status.HTTP_204_NO_CONTENT,
-    responses={status.HTTP_409_CONFLICT: {"model": ErrorMessage}},
+@user_router.put(
+    "/{user_id}/ssh_keys",
+    summary="Update user's public key",
+    description="Update the public ssh key of the user with the given ID. If the key "
+    "has already been inserted raise a 409 conflic error (it must be deleted). If the "
+    "user does not exist raise a 404 error.",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"model": ErrorMessage},
+        status.HTTP_409_CONFLICT: {"model": ErrorMessage},
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {"model": ErrorMessage},
+    },
 )
-def remove_user(
-    request: Request, session: SessionDep, user_id: uuid.UUID, user: UserDep
+def add_user_public_key(
+    request: Request,
+    session: SessionDep,
+    user: UserRequiredDep,
+    public_key: Annotated[
+        str, Field(description="Public ssh key"), AfterValidator(verify_public_ssh_key)
+    ],
 ) -> None:
-    """Remove a user from the system by their unique identifier.
+    """Add a public ssh key to an existing user.
 
-    Logs the deletion process and delegates the actual removal to the `delete_user`
-    function.
+    Updating a public ssh key does not involve updating Vault.
 
     Args:
-        request (Request): The HTTP request object, used for logging and request context
-        session (Session): The database session dependency used to perform the
-            deletion.
-        user_id (uuid.UUID): The unique identifier of the user to be removed.
-        user (User | None): The DB entity to be removed.
+        request (Request): The current request object.
+        session (Session): The database session dependency.
+        user (User): The user entity to update, if it exists.
+        public_key (str): The ssh public key to associate to the user.
 
     Returns:
         None
@@ -240,13 +347,76 @@ def remove_user(
     Raises:
         401 Unauthorized: If the user is not authenticated (handled by dependencies).
         403 Forbidden: If the user does not have permission (handled by dependencies).
-        409 Conflict: If the user has related entities and can't be deleted (handled by
-            dependencies).
+        404 Not Found: If the user does not exist (handled by exception handlers).
+        409 Conflict: If the user already has a public key (handled by exception
+            handlers).
+        422 Unprocessable Entity: If the input data are not valid (handled by fastapi).
 
     """
-    msg = f"Delete user with ID '{user_id!s}'"
+    msg = f"Add public key to user with ID '{user.id!s}'"
     request.state.logger.info(msg)
-    if user is not None:
-        delete_user(session=session, user=user)
-    msg = f"User with ID '{user_id!s}' deleted"
+    if user.public_ssh_key is not None:
+        msg = f"User with ID '{user.id!s}' already has a public key assigned."
+        request.state.logger.error(msg)
+        raise ConflictError(msg)
+
+    update_user(
+        session=session, user=user, new_data=UserUpdate(public_ssh_key=public_key)
+    )
+    msg = f"Public key added to user with ID '{user.id!s}'"
+    request.state.logger.info(msg)
+
+
+@user_router.delete(
+    "/{user_id}/ssh_keys",
+    summary="Delete user's public and private key",
+    description="Unset the public and private ssh keys of the user with the given ID."
+    "If the user does not exist raise a 404 error.",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def remove_user_public_key(
+    request: Request,
+    session: SessionDep,
+    user: UserRequiredDep,
+    credentials: AuthenticationDep,
+    settings: SettingsDep,
+) -> None:
+    """Remove a user public key and private key.
+
+    Remove the private key from vault if enabled.
+    Update the public ssh key of the user with the given ID.
+
+    Args:
+        request (Request): The current request object.
+        session (Session): The database session dependency.
+        user (User): The user entity to update, if it exists.
+        credentials (UserInfos): User credentials.
+        settings (Settings): Application settings.
+
+    Returns:
+        None
+
+    Raises:
+        401 Unauthorized: If the user is not authenticated (handled by dependencies).
+        403 Forbidden: If the user does not have permission (handled by dependencies).
+        404 Not Found: If the user does not exist (handled by exception handlers).
+
+    """
+    msg = f"Delete public key of user with ID '{user.id!s}'"
+    request.state.logger.info(msg)
+
+    if settings.VAULT_ENABLE:
+        delete_private_key(
+            issuer=credentials.issuer,
+            sub=credentials.subject,
+            access_token=credentials.access_token_info,
+            settings=settings,
+            logger=request.state.logger,
+        )
+
+    if user.public_ssh_key is not None:
+        update_user(
+            session=session, user=user, new_data=UserUpdate(public_ssh_key=None)
+        )
+    msg = f"Public key of user with ID '{user.id!s}' deleted"
     request.state.logger.info(msg)

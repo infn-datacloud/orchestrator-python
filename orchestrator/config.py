@@ -6,11 +6,26 @@ from functools import lru_cache
 from typing import Annotated, Literal
 
 from fastapi import Depends
-from pydantic import AnyHttpUrl, BeforeValidator, EmailStr, Field, model_validator
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    BeforeValidator,
+    EmailStr,
+    Field,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
 
 API_V1_STR = "/api/v1/"
+
+
+class IdentityProvider(BaseModel):
+    """Model for identity providers."""
+
+    issuer: Annotated[AnyHttpUrl, Field(description="Identity provider issuer")]
+    client_id: Annotated[str, Field(description="Client's ID")]
+    client_secret: Annotated[str, Field(description="Client's ID")]
 
 
 class AuthenticationMethodsEnum(str, Enum):
@@ -125,7 +140,7 @@ class Settings(BaseSettings):
         ),
     ]
     TRUSTED_IDP_LIST: Annotated[
-        list[AnyHttpUrl],
+        list[IdentityProvider],
         Field(
             default_factory=list,
             description="List of the application trusted identity providers",
@@ -157,6 +172,60 @@ class Settings(BaseSettings):
     VAULT_URL: Annotated[
         AnyHttpUrl,
         Field(default="http://localhost:8200/", description="Vault service URL"),
+    ]
+    VAULT_ROLE: Annotated[
+        str,
+        Field(
+            default="orchestrator",
+            description="Role used when communicating with vault",
+        ),
+    ]
+    VAULT_BOUND_AUDIENCE: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description="Audience value to use when communicating with vault",
+        ),
+    ]
+    VAULT_READ_POLICY: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description="Name of read policy to use when reading from vault",
+        ),
+    ]
+    VAULT_WRITE_POLICY: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description="Name of write policy to use when writing on vault",
+        ),
+    ]
+    VAULT_DELETE_POLICY: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description="Name of delete policy to use when deleting from vault",
+        ),
+    ]
+    VAULT_TOKEN_DURATION: Annotated[
+        int,
+        Field(
+            default=120,
+            ge=1,
+            description="Token validity time (in secods) for vault operations.",
+        ),
+    ]
+    VAULT_TOKEN_RENEWAL_DURATION: Annotated[
+        int,
+        Field(
+            default=120,
+            ge=1,
+            description="Token renewal time (in secods) for vault operations.",
+        ),
+    ]
+    VAULT_SECRETS_PATH: Annotated[
+        str, Field(default="/secrets", description="Base path for vault secrets")
     ]
     KAFKA_ENABLE: Annotated[
         bool, Field(default=False, description="Enable kafka communication")

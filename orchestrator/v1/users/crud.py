@@ -5,6 +5,7 @@ It wraps generic CRUD operations with user-specific logic and exception handling
 """
 
 import uuid
+from typing import Literal
 
 from sqlmodel import Session
 
@@ -19,7 +20,7 @@ FAKE_USER_SUBJECT = "fake_sub"
 FAKE_USER_ISSUER = "http://fake.iss.it"
 
 
-def get_user(*, session: SessionDep, user_id: uuid.UUID) -> User | None:
+def get_user(*, session: SessionDep, user_id: uuid.UUID | Literal["me"]) -> User | None:
     """Retrieve a user by their unique user_id from the database.
 
     Args:
@@ -30,7 +31,8 @@ def get_user(*, session: SessionDep, user_id: uuid.UUID) -> User | None:
         User instance if found, otherwise None.
 
     """
-    return get_item(session=session, entity=User, id=user_id)
+    if user_id != "me":
+        return get_item(session=session, entity=User, id=user_id)
 
 
 def get_users(
@@ -89,7 +91,7 @@ def update_user(*, session: Session, user: User, new_data: UserUpdate) -> None:
         session=session,
         entity=User,
         item=user,
-        **new_data.model_dump(exclude_none=True),
+        **new_data.model_dump(exclude_unset=True),
     )
 
 

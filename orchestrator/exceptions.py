@@ -41,11 +41,38 @@ class DeleteFailedError(Exception):
         super().__init__(self.message)
 
 
+class IdentityProviderConnectionError(Exception):
+    """Exception raised when connection with the IDP fails."""
+
+    def __init__(self, message: str):
+        """Initialize IdentityProviderConnectionError with a specific error message."""
+        self.message = message
+        super().__init__(self.message)
+
+
+class VaultConnectionError(Exception):
+    """Exception raised when connection with the IDP fails."""
+
+    def __init__(self, message: str):
+        """Initialize VaultConnectionError with a specific error message."""
+        self.message = message
+        super().__init__(self.message)
+
+
+class ConfigurationError(Exception):
+    """Exception raised when failing to retrieve information from settings."""
+
+    def __init__(self, message: str):
+        """Initialize ConfigurationError with a specific error message."""
+        self.message = message
+        super().__init__(self.message)
+
+
 def add_exception_handlers(app: FastAPI) -> None:
     """Add exception handlers to app."""
 
     @app.exception_handler(HTTPException)
-    def http_exception_handler(request: Request, exc: HTTPException):
+    def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
         """Handle HTTPException errors by returning a JSON response.
 
         The new object contains the exception's status code and detail.
@@ -65,7 +92,9 @@ def add_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(ItemNotFoundError)
-    def item_not_found_exception_handler(request: Request, exc: ItemNotFoundError):
+    def item_not_found_exception_handler(
+        request: Request, exc: ItemNotFoundError
+    ) -> JSONResponse:
         """Handle ItemNotFoundError errors by returning a JSON response.
 
         The new object contains the exception's status code and detail.
@@ -85,7 +114,9 @@ def add_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(ConflictError)
-    def conflict_exception_handler(request: Request, exc: ConflictError):
+    def conflict_exception_handler(
+        request: Request, exc: ConflictError
+    ) -> JSONResponse:
         """Handle ConflictError errors by returning a JSON response.
 
         The new object contains the exception's status code and detail.
@@ -105,7 +136,9 @@ def add_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(DeleteFailedError)
-    def delete_failed_exception_handler(request: Request, exc: DeleteFailedError):
+    def delete_failed_exception_handler(
+        request: Request, exc: DeleteFailedError
+    ) -> JSONResponse:
         """Handle DeleteFailedError errors by returning a JSON response.
 
         The new object contains the exception's status code and detail.
@@ -125,7 +158,9 @@ def add_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(FlaatUnauthenticated)
-    def unauthenticated_exception_handler(request: Request, exc: FlaatUnauthenticated):
+    def unauthenticated_exception_handler(
+        request: Request, exc: FlaatUnauthenticated
+    ) -> JSONResponse:
         """Handle FlaatUnauthenticated errors by returning a JSON response.
 
         The new object contains the exception's status code and detail.
@@ -142,4 +177,48 @@ def add_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content={"status": status.HTTP_403_FORBIDDEN, "detail": exc.render()},
+        )
+
+    @app.exception_handler(IdentityProviderConnectionError)
+    def idp_connection_failed_handler(
+        request: Request, exc: IdentityProviderConnectionError
+    ) -> JSONResponse:
+        """Handle IdentityProviderConnectionError errors by returning a JSON response.
+
+        The new object contains the exception's status code and detail.
+
+        Args:
+            request (Request): The incoming HTTP request that caused the exception.
+            exc (IdentityProviderConnectionError): The exception instance.
+
+        Returns:
+            JSONResponse: A JSON response with the status code and detail of the
+                exception.
+
+        """
+        return JSONResponse(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            content={"status": status.HTTP_504_GATEWAY_TIMEOUT, "detail": exc.message},
+        )
+
+    @app.exception_handler(VaultConnectionError)
+    def vault_connection_failed_handler(
+        request: Request, exc: VaultConnectionError
+    ) -> JSONResponse:
+        """Handle VaultConnectionError errors by returning a JSON response.
+
+        The new object contains the exception's status code and detail.
+
+        Args:
+            request (Request): The incoming HTTP request that caused the exception.
+            exc (VaultConnectionError): The exception instance.
+
+        Returns:
+            JSONResponse: A JSON response with the status code and detail of the
+                exception.
+
+        """
+        return JSONResponse(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            content={"status": status.HTTP_504_GATEWAY_TIMEOUT, "detail": exc.message},
         )

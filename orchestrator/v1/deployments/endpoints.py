@@ -26,7 +26,7 @@ from orchestrator.v1.deployments.schemas import (
 )
 from orchestrator.v1.schemas import ErrorMessage, ItemID
 from orchestrator.v1.templates.dependencies import TemplateRequiredDep
-from orchestrator.v1.users.dependencies import CurrenUserDep
+from orchestrator.v1.users.dependencies import CurrentUserDep
 
 deployment_router = APIRouter(prefix=TEMPLATES_PREFIX, tags=["deployments"])
 
@@ -67,7 +67,7 @@ def available_methods(response: Response) -> None:
 def create_deployment(
     request: Request,
     session: SessionDep,
-    current_user: CurrenUserDep,
+    current_user: CurrentUserDep,
     template: TemplateRequiredDep,
     deployment: DeploymentCreate,
 ) -> ItemID:
@@ -80,7 +80,7 @@ def create_deployment(
     Args:
         request (Request): The incoming HTTP request object, used for logging.
         deployment (DeploymentCreate | None): The deployment data to create.
-        current_user (CurrenUserDep): The DB user matching the current user retrieved
+        current_user (CurrentUserDep): The DB user matching the current user retrieved
             from the access token.
         session (SessionDep): The database session dependency.
         template (DeploymentCreate | None): The deployment data to create.
@@ -225,7 +225,7 @@ def retrieve_deployment(
 def edit_deployment(
     request: Request,
     session: SessionDep,
-    current_user: CurrenUserDep,
+    current_user: CurrentUserDep,
     deployment: DeploymentRequiredDep,
     new_data: DeploymentUpdate,
 ) -> None:
@@ -236,7 +236,7 @@ def edit_deployment(
         session (SessionDep): The database session dependency.
         deployment (uuid.UUID): The unique identifier of the deployment to update.
         new_data (UserCreate): The new deployment data to update.
-        current_user (CurrenUserDep): The DB user matching the current user retrieved
+        current_user (CurrentUserDep): The DB user matching the current user retrieved
             from the access token.
 
     Raises:

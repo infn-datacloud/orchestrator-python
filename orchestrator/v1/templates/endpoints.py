@@ -25,7 +25,7 @@ from orchestrator.v1.templates.schemas import (
     TemplateRead,
     TemplateUpdate,
 )
-from orchestrator.v1.users.dependencies import CurrenUserDep
+from orchestrator.v1.users.dependencies import CurrentUserDep
 
 template_router = APIRouter(prefix=TEMPLATES_PREFIX, tags=["templates"])
 
@@ -64,7 +64,7 @@ def available_methods(response: Response) -> None:
 def create_template(
     request: Request,
     session: SessionDep,
-    current_user: CurrenUserDep,
+    current_user: CurrentUserDep,
     template: TemplateCreateDep,
 ) -> ItemID:
     """Create a new template in the system.
@@ -213,7 +213,7 @@ def retrieve_template(request: Request, template: TemplateRequiredDep) -> Templa
 def edit_template(
     request: Request,
     session: SessionDep,
-    current_user: CurrenUserDep,
+    current_user: CurrentUserDep,
     template: TemplateRequiredDep,
     new_data: TemplateUpdate,
 ) -> None:

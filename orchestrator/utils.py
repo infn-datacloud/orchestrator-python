@@ -4,12 +4,17 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import APIRouter, Response
 from fastapi.routing import APIRoute
 from pydantic import AnyHttpUrl
 from sqlmodel import String, TypeDecorator
 
 MAX_LEN = 255
+KEY_EXP = 65537
+KEY_SIZE = 2048
 
 
 class HttpUrlType(TypeDecorator):
@@ -136,3 +141,42 @@ def isoformat(d: datetime) -> str:
         raise ValueError(
             f"Input value is not a datetime instance. Type: {type(d)}"
         ) from e
+
+
+def create_ssh_keys() -> tuple[str, str]:
+    """Generate ssh keys couples.
+
+    Retuns:
+        (str, str): private and public ssh keys couple.
+
+    """
+    key = rsa.generate_private_key(
+        backend=default_backend(), public_exponent=KEY_EXP, key_size=KEY_SIZE
+    )
+    private_key = key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    )
+    public_key = key.public_key().public_bytes(
+        serialization.Encoding.OpenSSH, serialization.PublicFormat.OpenSSH
+    )
+
+    return private_key.decode("utf-8"), public_key.decode("utf-8")
+
+
+def verify_public_ssh_key(key: str) -> bool:
+    """Verify that the key is a public ssh key.
+
+    Args:
+        key (str): public ssh key to validate.
+
+    Returns:
+        bool: True if a valid public ssh key, false otherwise.
+
+    """
+    try:
+        serialization.load_ssh_public_key(key, backend=default_backend())
+        return key
+    except ValueError as e:
+        raise ValueError("Input value is not a valid SSH public key") from e

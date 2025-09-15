@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, Body, HTTPException, Request, Response, status
 from pydantic import AfterValidator, Field
 
 from orchestrator.auth import AuthenticationDep
@@ -311,7 +311,7 @@ def add_user_ssh_keys(
     request.state.logger.info(msg)
 
 
-@user_router.put(
+@user_router.patch(
     "/{user_id}/ssh_keys",
     summary="Update user's public key",
     description="Update the public ssh key of the user with the given ID. If the key "
@@ -328,7 +328,10 @@ def add_user_public_key(
     session: SessionDep,
     user: UserRequiredDep,
     public_key: Annotated[
-        str, Field(description="Public ssh key"), AfterValidator(verify_public_ssh_key)
+        str,
+        Field(description="Public ssh key"),
+        AfterValidator(verify_public_ssh_key),
+        Body(embed=True),
     ],
 ) -> None:
     """Add a public ssh key to an existing user.

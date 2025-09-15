@@ -280,6 +280,7 @@ def add_item(*, entity: type[Entity], session: Session, **kwargs) -> Entity:
         db_item = entity(**kwargs)
         session.add(db_item)
         session.commit()
+        session.refresh(db_item)
         return db_item
     except sqlalchemy.exc.IntegrityError as e:
         raise_from_integrity_error(entity=entity, session=session, error=e, **kwargs)

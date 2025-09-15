@@ -9,7 +9,6 @@ from fastapi import Query
 from pydantic import AnyHttpUrl, computed_field
 from sqlmodel import JSON, AutoString, Column, Field, SQLModel
 
-from orchestrator.config import API_V1_STR
 from orchestrator.v1 import LOGS_PREFIX, RESOURCES_PREFIX, TEMPLATES_PREFIX
 from orchestrator.v1.schemas import (
     CreationQuery,
@@ -242,7 +241,7 @@ class DeploymentRead(
 
         """
         templates_link = urllib.parse.urljoin(
-            str(self.base_url), f"{API_V1_STR}{TEMPLATES_PREFIX[1:]}"
+            str(self.base_url), f"{self.id}{TEMPLATES_PREFIX}"
         )
         resources_link = urllib.parse.urljoin(
             str(self.base_url), f"{self.id}{RESOURCES_PREFIX}"

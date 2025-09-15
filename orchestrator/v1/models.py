@@ -8,6 +8,7 @@ from typing import Annotated
 
 from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
+from orchestrator.v1.deployments.resources.schemas import ResourceBase
 from orchestrator.v1.deployments.schemas import DeploymentBase, DeploymentInternal
 from orchestrator.v1.schemas import CreationTime, ItemID, UpdateTime
 from orchestrator.v1.templates.schemas import TemplateBase, TemplateUpdate
@@ -57,6 +58,15 @@ class User(ItemID, CreationTime, UserBase, UserUpdate, table=True):
     )
     owned_deployments: list["Deployment"] = Relationship(
         back_populates="owned_by", link_model=OwnedDeployments
+    )
+
+    created_resources: list["Resource"] = Relationship(
+        back_populates="created_by",
+        sa_relationship_kwargs={"foreign_keys": "Resource.created_by_id"},
+    )
+    updated_resources: list["Resource"] = Relationship(
+        back_populates="updated_by",
+        sa_relationship_kwargs={"foreign_keys": "Resource.updated_by_id"},
     )
 
     __table_args__ = (
@@ -128,3 +138,71 @@ class Deployment(
     )
 
     template: Template = Relationship(back_populates="deployments")
+    resources: list["Resource"] = Relationship(back_populates="deployment")
+
+
+class ResourceInheritance(SQLModel, table=True):
+    """Association table between dependable resources."""
+
+    parent_id: Annotated[
+        uuid.UUID,
+        Field(
+            foreign_key="resource.id",
+            primary_key=True,
+            description="FK pointing to the parent resource's ID",
+        ),
+    ]
+    parent: "Resource" = Relationship(
+        back_populates="requires",
+        sa_relationship_kwargs={"foreign_keys": "ResourceInheritance.parent_id"},
+    )
+
+    child_id: Annotated[
+        uuid.UUID,
+        Field(
+            foreign_key="resource.id",
+            primary_key=True,
+            description="FK pointing to the child resource's ID",
+        ),
+    ]
+    child: "Resource" = Relationship(
+        back_populates="required_by",
+        sa_relationship_kwargs={"foreign_keys": "ResourceInheritance.child_id"},
+    )
+
+
+class Resource(ItemID, CreationTime, UpdateTime, ResourceBase, table=True):
+    """Schema used to return Resource's data to clients."""
+
+    created_by_id: Annotated[
+        uuid.UUID,
+        Field(foreign_key="user.id", description="User who created this item."),
+    ]
+    created_by: User = Relationship(
+        back_populates="created_resources",
+        sa_relationship_kwargs={"foreign_keys": "Resource.created_by_id"},
+    )
+
+    updated_by_id: Annotated[
+        uuid.UUID,
+        Field(foreign_key="user.id", description="User who last updated this item."),
+    ]
+    updated_by: User = Relationship(
+        back_populates="updated_resources",
+        sa_relationship_kwargs={"foreign_keys": "Resource.updated_by_id"},
+    )
+
+    deployment_id: Annotated[
+        uuid.UUID,
+        Field(foreign_key="deployment.id", description="Parent deployment ID"),
+    ]
+    deployment: Deployment = Relationship(back_populates="resources")
+
+    requires: list[ResourceInheritance] = Relationship(
+        back_populates="parent",
+        sa_relationship_kwargs={"foreign_keys": "ResourceInheritance.parent_id"},
+    )
+    required_by: list[ResourceInheritance] = Relationship(
+        back_populates="child",
+        sa_relationship_kwargs={"foreign_keys": "ResourceInheritance.child_id"},
+    )

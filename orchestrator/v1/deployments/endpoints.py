@@ -31,6 +31,7 @@ from orchestrator.v1.deployments.schemas import (
     DeploymentUpdate,
 )
 from orchestrator.v1.schemas import ErrorMessage, ItemID
+from orchestrator.v1.templates.schemas import TemplateRead
 from orchestrator.v1.users.dependencies import CurrentUserDep
 
 deployment_router = APIRouter(prefix=DEPLOYMENTS_PREFIX, tags=["deployments"])
@@ -328,3 +329,38 @@ def remove_deployment(
     )
     msg = f"Deployment with ID '{deployment_id!s}' deleted"
     request.state.logger.info(msg)
+
+
+@deployment_router.get(
+    "/{deployment_id}/templates",
+    summary="Retrieve deployment's template",
+    description="Retrieve the template used by the target deployment.",
+    responses={status.HTTP_404_NOT_FOUND: {"model": ErrorMessage}},
+)
+def retrieve_deployment_template(
+    request: Request, deployment: DeploymentRequiredDep
+) -> TemplateRead:
+    """Retrieve a deployment's template.
+
+    Checks if the deployment exists, and returns the deployment's template object if
+    found. If the deployment or the template do not exist, logs an error and returns a
+    JSON response with a 404 status.
+
+    Args:
+        request (Request): The incoming HTTP request object.
+        deployment (Deployment): The deployment object, if found.
+
+    Returns:
+        Template: The template object.
+
+    Raises:
+        401 Unauthorized: If the user is not authenticated (handled by dependencies).
+        403 Forbidden: If the user does not have permission (handled by dependencies).
+        404 Not Found: If the user does not exist (handled below).
+
+    """
+    msg = f"Template of deployment with ID '{deployment.id!s}' found: "
+    msg += f"{deployment.template.model_dump_json()}"
+    request.state.logger.info(msg)
+    template = TemplateRead(**deployment.template.model_dump())
+    return template

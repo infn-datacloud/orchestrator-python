@@ -9,6 +9,7 @@ from fastapi import Query
 from pydantic import AnyHttpUrl, computed_field
 from sqlmodel import JSON, AutoString, Column, Field, SQLModel
 
+from orchestrator.utils import HttpUrlType
 from orchestrator.v1 import LOGS_PREFIX, RESOURCES_PREFIX, TEMPLATES_PREFIX
 from orchestrator.v1.schemas import (
     CreationQuery,
@@ -123,11 +124,11 @@ class DeploymentBase(SQLModel):
             "of the last attempted deployment or not.",
         ),
     ]
-    target_provider: Annotated[
+    target_provider_name: Annotated[
         str | None,
         Field(default=None, description="Name of the target provider to use"),
     ]
-    target_region: Annotated[
+    target_region_name: Annotated[
         str | None, Field(default=None, description="Name of the target region to use")
     ]
 
@@ -135,6 +136,9 @@ class DeploymentBase(SQLModel):
 class DeploymentInternal(SQLModel):
     """Schema with the attributes which can't be used when creating an instnce."""
 
+    user_group_issuer: Annotated[
+        AnyHttpUrl, Field(sa_type=HttpUrlType, description="User group's issuer")
+    ]
     status: Annotated[
         DeploymentStatus,
         Field(

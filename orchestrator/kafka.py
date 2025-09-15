@@ -8,7 +8,7 @@ from typing import Annotated, Any
 import aiokafka.errors
 from aiokafka import AIOKafkaProducer
 from aiokafka.helpers import create_ssl_context
-from pydantic import BaseModel, Field
+from pydantic import AnyHttpUrl, BaseModel, Field
 
 from orchestrator.config import Settings
 from orchestrator.exceptions import KafkaConnectionError
@@ -28,6 +28,7 @@ class CreateDepMessage(BaseModel):
         str,
         Field(description="User group owning the resources used for this deployment"),
     ]
+    user_group_issuer: Annotated[AnyHttpUrl, Field(description="User group's issuer")]
     per_provider_max_retries: Annotated[
         int,
         Field(
@@ -75,11 +76,15 @@ class CreateDepMessage(BaseModel):
             "of the last attempted deployment or not.",
         ),
     ]
-    target_provider: Annotated[
+    target_provider_name: Annotated[
         str | None,
         Field(default=None, description="Name of the target provider to use"),
     ]
-    target_region: Annotated[
+    target_provider_type: Annotated[
+        str | None,
+        Field(default=None, description="Type of the target provider to use"),
+    ]
+    target_region_name: Annotated[
         str | None, Field(default=None, description="Name of the target region to use")
     ]
     owners_ssh_keys: Annotated[
@@ -208,6 +213,7 @@ async def send_deployment_creation(
         message = CreateDepMessage(
             msg_version=settings.KAFKA_CREATE_DEP_MSG_VERSION,
             template=deployment.template.content,
+            target_provider_type=deployment.template.target_provider_type,
             owners_ssh_keys=owners_ssh_keys,
             deployment_id=deployment.id,
             **deployment.model_dump(),

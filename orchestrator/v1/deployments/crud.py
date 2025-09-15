@@ -87,6 +87,7 @@ def add_deployment(
         created_by=created_by,
         updated_by=created_by,
         owned_by=[created_by],
+        user_group_issuer=created_by.issuer,
         template=template,
         **deployment.model_dump(),
     )

@@ -68,6 +68,15 @@ class ConfigurationError(Exception):
         super().__init__(self.message)
 
 
+class InvalidRequestError(Exception):
+    """Exception raised when input request is invalid."""
+
+    def __init__(self, message: str):
+        """Initialize InvalidRequest with a specific error message."""
+        self.message = message
+        super().__init__(self.message)
+
+
 def add_exception_handlers(app: FastAPI) -> None:
     """Add exception handlers to app."""
 
@@ -221,4 +230,29 @@ def add_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             content={"status": status.HTTP_504_GATEWAY_TIMEOUT, "detail": exc.message},
+        )
+
+    @app.exception_handler(InvalidRequestError)
+    def invalid_request_handler(
+        request: Request, exc: InvalidRequestError
+    ) -> JSONResponse:
+        """Handle InvalidRequestError errors by returning a JSON response.
+
+        The new object contains the exception's status code and detail.
+
+        Args:
+            request (Request): The incoming HTTP request that caused the exception.
+            exc (InvalidRequestError): The exception instance.
+
+        Returns:
+            JSONResponse: A JSON response with the status code and detail of the
+                exception.
+
+        """
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={
+                "status": status.HTTP_422_UNPROCESSABLE_ENTITY,
+                "detail": exc.message,
+            },
         )

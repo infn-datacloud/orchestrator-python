@@ -10,9 +10,11 @@ import uuid
 from sqlmodel import Session
 
 from orchestrator.db import SessionDep
+from orchestrator.exceptions import ItemNotFoundError
 from orchestrator.v1.crud import add_item, delete_item, get_item, get_items, update_item
 from orchestrator.v1.deployments.schemas import DeploymentCreate, DeploymentUpdate
 from orchestrator.v1.models import Deployment, User
+from orchestrator.v1.templates.crud import get_template
 
 
 def get_deployment(
@@ -69,16 +71,23 @@ def add_deployment(
         session (Session): The database session.
         deployment (DeploymentCreate): The model instance to add.
         created_by (User): The user issuing the operation.
+        template (Template): Matching template.
 
     Returns:
         Deployment: The newly created DB entity.
 
     """
+    template = get_template(session=session, template_id=deployment.template_id)
+    if template is None:
+        message = f"Template with id={deployment.template_id!s} does not exist"
+        raise ItemNotFoundError(message)
     return add_item(
         session=session,
         entity=Deployment,
         created_by=created_by,
         updated_by=created_by,
+        owned_by=[created_by],
+        template=template,
         **deployment.model_dump(),
     )
 

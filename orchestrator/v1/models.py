@@ -6,12 +6,33 @@ Remember: Avoid Annotated when using Relationship
 import uuid
 from typing import Annotated
 
-from sqlmodel import Field, Relationship, UniqueConstraint
+from sqlmodel import Field, Relationship, SQLModel, UniqueConstraint
 
-from orchestrator.v1.deployments.schemas import DeploymentBase
+from orchestrator.v1.deployments.schemas import DeploymentBase, DeploymentInternal
 from orchestrator.v1.schemas import CreationTime, ItemID, UpdateTime
 from orchestrator.v1.templates.schemas import TemplateBase, TemplateUpdate
 from orchestrator.v1.users.schemas import UserBase, UserUpdate
+
+
+class OwnedDeployments(SQLModel, table=True):
+    """Association table linking users to owned deployments."""
+
+    owner_id: Annotated[
+        uuid.UUID,
+        Field(
+            foreign_key="user.id",
+            primary_key=True,
+            description="FK pointing to the user's ID",
+        ),
+    ]
+    deployment_id: Annotated[
+        uuid.UUID,
+        Field(
+            foreign_key="deployment.id",
+            primary_key=True,
+            description="FK pointing to the deployment's ID",
+        ),
+    ]
 
 
 class User(ItemID, CreationTime, UserBase, UserUpdate, table=True):
@@ -33,6 +54,9 @@ class User(ItemID, CreationTime, UserBase, UserUpdate, table=True):
     updated_deployments: list["Deployment"] = Relationship(
         back_populates="updated_by",
         sa_relationship_kwargs={"foreign_keys": "Deployment.updated_by_id"},
+    )
+    owned_deployments: list["Deployment"] = Relationship(
+        back_populates="owned_by", link_model=OwnedDeployments
     )
 
     __table_args__ = (
@@ -73,8 +97,12 @@ class Template(
         sa_relationship_kwargs={"foreign_keys": "Template.updated_by_id"},
     )
 
+    deployments: list["Deployment"] = Relationship(back_populates="template")
 
-class Deployment(ItemID, CreationTime, UpdateTime, DeploymentBase, table=True):
+
+class Deployment(
+    ItemID, CreationTime, UpdateTime, DeploymentBase, DeploymentInternal, table=True
+):
     """Schema used to return Deployment's data to clients."""
 
     created_by_id: Annotated[
@@ -94,3 +122,9 @@ class Deployment(ItemID, CreationTime, UpdateTime, DeploymentBase, table=True):
         back_populates="updated_deployments",
         sa_relationship_kwargs={"foreign_keys": "Deployment.updated_by_id"},
     )
+
+    owned_by: list[User] = Relationship(
+        back_populates="owned_deployments", link_model=OwnedDeployments
+    )
+
+    template: Template = Relationship(back_populates="deployments")

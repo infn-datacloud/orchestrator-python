@@ -1,10 +1,14 @@
 """Endpoints to manage deployment details."""
 
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Request, Response, status
+from pydantic import Field
 
+from orchestrator.auth import AuthenticationDep
 from orchestrator.db import SessionDep
+from orchestrator.exceptions import InvalidRequestError
 from orchestrator.utils import add_allow_header_to_resp
 from orchestrator.v1 import DEPLOYMENTS_PREFIX
 from orchestrator.v1.deployments.crud import (
@@ -25,7 +29,6 @@ from orchestrator.v1.deployments.schemas import (
     DeploymentUpdate,
 )
 from orchestrator.v1.schemas import ErrorMessage, ItemID
-from orchestrator.v1.templates.dependencies import TemplateRequiredDep
 from orchestrator.v1.users.dependencies import CurrentUserDep
 
 deployment_router = APIRouter(prefix=DEPLOYMENTS_PREFIX, tags=["deployments"])
@@ -67,8 +70,8 @@ def available_methods(response: Response) -> None:
 def create_deployment(
     request: Request,
     session: SessionDep,
+    user_infos: AuthenticationDep,
     current_user: CurrentUserDep,
-    template: TemplateRequiredDep,
     deployment: DeploymentCreate,
 ) -> ItemID:
     """Create a new deployment in the system.
@@ -80,6 +83,7 @@ def create_deployment(
     Args:
         request (Request): The incoming HTTP request object, used for logging.
         deployment (DeploymentCreate | None): The deployment data to create.
+        user_infos (UserInfos): User's info stored in the token.
         current_user (CurrentUserDep): The DB user matching the current user retrieved
             from the access token.
         session (SessionDep): The database session dependency.
@@ -95,9 +99,13 @@ def create_deployment(
         409 Conflict: If the user already exists (handled below).
 
     """
+    if deployment.user_group not in user_infos.user_info.get("groups", []):
+        msg = f"Current user does not belong to user group {deployment.user_group}"
+        request.state.logger.error(msg)
+        raise InvalidRequestError(msg)
+
     msg = f"Creating deployment with params: {deployment.model_dump_json()}"
     request.state.logger.info(msg)
-    request.state.logger.debug(deployment.content)
     db_deployment = add_deployment(
         session=session, deployment=deployment, created_by=current_user
     )
@@ -154,6 +162,7 @@ def retrieve_deployments(
             **deployment.model_dump(),  # Does not return created_by and updated_by
             created_by=deployment.created_by_id,
             updated_by=deployment.created_by_id,
+            owned_by=[i.id for i in deployment.owned_by],
             base_url=str(request.url),
         )
         new_deployments.append(new_deployment)
@@ -206,6 +215,7 @@ def retrieve_deployment(
         **deployment.model_dump(),  # Does not return created_by and updated_by
         created_by=deployment.created_by_id,
         updated_by=deployment.created_by_id,
+        owned_by=[i.id for i in deployment.owned_by],
         base_url=str(request.url),
     )
     return deployment
@@ -269,8 +279,14 @@ def remove_deployment(
     session: SessionDep,
     deployment_id: uuid.UUID,
     deployment: DeploymentDep,
-    force: bool,
-    unsecure: bool,
+    force: Annotated[bool, Field(default=False, description="Force entry deletion")],
+    unsecure: Annotated[
+        bool,
+        Field(
+            default=False,
+            description="Mark resource deleted also if the deletion fails",
+        ),
+    ],
 ) -> None:
     """Remove a deployment from the system by their unique identifier.
 
@@ -296,6 +312,8 @@ def remove_deployment(
     """
     msg = f"Delete deployment with ID '{deployment_id!s}'"
     request.state.logger.info(msg)
-    delete_deployment(session=session, deployment=deployment)
+    delete_deployment(
+        session=session, deployment=deployment, force=force, unsecure=unsecure
+    )
     msg = f"Deployment with ID '{deployment_id!s}' deleted"
     request.state.logger.info(msg)

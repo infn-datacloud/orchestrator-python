@@ -55,11 +55,15 @@ async def lifespan(app: FastAPI):
         dict: A dictionary with the logger instance, available in the request state.
 
     """
+    state = {}
     logger = get_logger(settings)
+    state["logger"] = logger
+
     configure_flaat(settings, logger)
     engine = create_db_and_tables(logger)
     if settings.VAULT_ENABLE:
         vault_client = create_vault_client(settings, logger)
+        state["vault"] = vault_client
 
     # At application startup create or delete fake user based on authn mode
     with Session(engine) as session:
@@ -68,7 +72,7 @@ async def lifespan(app: FastAPI):
         else:
             delete_fake_user(session)
 
-    yield {"logger": logger, "vault": vault_client}
+    yield state
 
     dispose_engine(logger)
 

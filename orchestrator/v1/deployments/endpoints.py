@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request, Response, status
 
 from orchestrator.db import SessionDep
 from orchestrator.utils import add_allow_header_to_resp
-from orchestrator.v1 import TEMPLATES_PREFIX
+from orchestrator.v1 import DEPLOYMENTS_PREFIX
 from orchestrator.v1.deployments.crud import (
     add_deployment,
     delete_deployment,
@@ -28,7 +28,7 @@ from orchestrator.v1.schemas import ErrorMessage, ItemID
 from orchestrator.v1.templates.dependencies import TemplateRequiredDep
 from orchestrator.v1.users.dependencies import CurrentUserDep
 
-deployment_router = APIRouter(prefix=TEMPLATES_PREFIX, tags=["deployments"])
+deployment_router = APIRouter(prefix=DEPLOYMENTS_PREFIX, tags=["deployments"])
 
 
 @deployment_router.options(

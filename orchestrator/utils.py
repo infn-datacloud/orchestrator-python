@@ -176,7 +176,7 @@ def verify_public_ssh_key(key: str) -> bool:
 
     """
     try:
-        serialization.load_ssh_public_key(key, backend=default_backend())
+        serialization.load_ssh_public_key(key.encode(), backend=default_backend())
         return key
     except ValueError as e:
         raise ValueError("Input value is not a valid SSH public key") from e

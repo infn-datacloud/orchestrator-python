@@ -7,8 +7,10 @@ from fastapi import APIRouter, Request, Response, status
 from pydantic import Field
 
 from orchestrator.auth import AuthenticationDep
+from orchestrator.config import SettingsDep
 from orchestrator.db import SessionDep
 from orchestrator.exceptions import InvalidRequestError
+from orchestrator.kafka import send_deployment_creation
 from orchestrator.utils import add_allow_header_to_resp
 from orchestrator.v1 import DEPLOYMENTS_PREFIX
 from orchestrator.v1.deployments.crud import (
@@ -67,9 +69,10 @@ def available_methods(response: Response) -> None:
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"model": ErrorMessage},
     },
 )
-def create_deployment(
+async def create_deployment(
     request: Request,
     session: SessionDep,
+    settings: SettingsDep,
     user_infos: AuthenticationDep,
     current_user: CurrentUserDep,
     deployment: DeploymentCreate,
@@ -82,12 +85,12 @@ def create_deployment(
 
     Args:
         request (Request): The incoming HTTP request object, used for logging.
-        deployment (DeploymentCreate | None): The deployment data to create.
+        session (SessionDep): The database session dependency.
+        settings (Settings): The application settings.
         user_infos (UserInfos): User's info stored in the token.
         current_user (CurrentUserDep): The DB user matching the current user retrieved
             from the access token.
-        session (SessionDep): The database session dependency.
-        template (DeploymentCreate | None): The deployment data to create.
+        deployment (DeploymentCreate | None): The deployment data to create.
 
     Returns:
         ItemID: A dictionary containing the ID of the created deployment on
@@ -103,6 +106,10 @@ def create_deployment(
         msg = f"Current user does not belong to user group {deployment.user_group}"
         request.state.logger.error(msg)
         raise InvalidRequestError(msg)
+    if current_user.public_ssh_key is None or current_user.public_ssh_key == "":
+        msg = "Current user does not have a valid public SSH key"
+        request.state.logger.error(msg)
+        raise InvalidRequestError(msg)
 
     msg = f"Creating deployment with params: {deployment.model_dump_json()}"
     request.state.logger.info(msg)
@@ -111,6 +118,10 @@ def create_deployment(
     )
     msg = f"Deployment created: {db_deployment.model_dump_json()}"
     request.state.logger.info(msg)
+
+    if settings.KAFKA_ENABLE:
+        await send_deployment_creation(db_deployment, settings, request.state.logger)
+
     return {"id": db_deployment.id}
 
 

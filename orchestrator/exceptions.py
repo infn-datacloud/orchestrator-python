@@ -77,6 +77,15 @@ class InvalidRequestError(Exception):
         super().__init__(self.message)
 
 
+class KafkaConnectionError(Exception):
+    """Exception raised when input request is invalid."""
+
+    def __init__(self, message: str):
+        """Initialize KafkaConnectionError with a specific error message."""
+        self.message = message
+        super().__init__(self.message)
+
+
 def add_exception_handlers(app: FastAPI) -> None:
     """Add exception handlers to app."""
 
@@ -254,5 +263,30 @@ def add_exception_handlers(app: FastAPI) -> None:
             content={
                 "status": status.HTTP_422_UNPROCESSABLE_ENTITY,
                 "detail": exc.message,
+            },
+        )
+
+    @app.exception_handler(KafkaConnectionError)
+    def kafka_connection_error_handler(
+        request: Request, exc: KafkaConnectionError
+    ) -> JSONResponse:
+        """Handle KafkaConnectionError errors by returning a JSON response.
+
+        The new object contains the exception's status code and detail.
+
+        Args:
+            request (Request): The incoming HTTP request that caused the exception.
+            exc (KafkaConnectionError): The exception instance.
+
+        Returns:
+            JSONResponse: A JSON response with the status code and detail of the
+                exception.
+
+        """
+        return JSONResponse(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            content={
+                "status": status.HTTP_504_GATEWAY_TIMEOUT,
+                "detail": exc.args[0],
             },
         )

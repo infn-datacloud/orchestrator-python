@@ -38,7 +38,7 @@ class CreateDepMessage(BaseModel):
             description="Maximum number of retries for each provider. In range [1,10].",
         ),
     ]
-    max_provider: Annotated[
+    max_providers: Annotated[
         int | None,
         Field(
             default=None,
@@ -47,7 +47,7 @@ class CreateDepMessage(BaseModel):
             "create the deployment. In range [1, +inf)",
         ),
     ]
-    total_timeout: Annotated[
+    timeout: Annotated[
         int,
         Field(
             default=14400,
@@ -89,6 +89,12 @@ class CreateDepMessage(BaseModel):
     ]
     owners_ssh_keys: Annotated[
         list[str], Field(description="List of SSH public keys of deployment owners")
+    ]
+    access_token: Annotated[
+        str, Field(description="User's access token to send to the IM")
+    ]
+    refresh_token: Annotated[
+        str, Field(description="User's refresh token for longer deployments")
     ]
 
 
@@ -189,12 +195,19 @@ async def send(producer: AIOKafkaProducer, topic: str, message: dict[str, Any]) 
 
 
 async def send_deployment_creation(
-    deployment: Deployment, settings: Settings, logger: Logger
+    *,
+    deployment: Deployment,
+    access_token: str,
+    refresh_token: str,
+    settings: Settings,
+    logger: Logger,
 ) -> None:
     """Asynchronously send message to Kafka to create a deployment.
 
     Args:
         deployment (Deployment): The deployment object.
+        access_token (str): User access token.
+        refresh_token (str): User refresh token.
         settings (Settings): Application settings including Kafka configuration and
             message version.
         logger (Logger): Logger instance for logging events.
@@ -212,6 +225,8 @@ async def send_deployment_creation(
         owners_ssh_keys = [owner.public_ssh_key for owner in deployment.owned_by]
         message = CreateDepMessage(
             msg_version=settings.KAFKA_CREATE_DEP_MSG_VERSION,
+            access_token=access_token,
+            refresh_token=refresh_token,
             template=deployment.template.content,
             target_provider_type=deployment.template.target_provider_type,
             owners_ssh_keys=owners_ssh_keys,

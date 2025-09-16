@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Request, Response, status
 from pydantic import Field
 
-from orchestrator.auth import AuthenticationDep
+from orchestrator.auth import AuthenticationDep, HttpAuthzCredsDep
 from orchestrator.config import SettingsDep
 from orchestrator.db import SessionDep
 from orchestrator.exceptions import InvalidRequestError
@@ -75,6 +75,7 @@ async def create_deployment(
     session: SessionDep,
     settings: SettingsDep,
     user_infos: AuthenticationDep,
+    authz_creds: HttpAuthzCredsDep,
     current_user: CurrentUserDep,
     deployment: DeploymentCreate,
 ) -> ItemID:
@@ -88,6 +89,7 @@ async def create_deployment(
         request (Request): The incoming HTTP request object, used for logging.
         session (SessionDep): The database session dependency.
         settings (Settings): The application settings.
+        authz_creds (HTTPAuthorizationCredentials): The user crentials (access_token).
         user_infos (UserInfos): User's info stored in the token.
         current_user (CurrentUserDep): The DB user matching the current user retrieved
             from the access token.
@@ -112,6 +114,10 @@ async def create_deployment(
         request.state.logger.error(msg)
         raise InvalidRequestError(msg)
 
+    # Retrieve refresh token
+    access_token = authz_creds.credentials
+    refresh_token = ""  # TODO retrieve refresh token
+
     msg = f"Creating deployment with params: {deployment.model_dump_json()}"
     request.state.logger.info(msg)
     db_deployment = add_deployment(
@@ -121,7 +127,13 @@ async def create_deployment(
     request.state.logger.info(msg)
 
     if settings.KAFKA_ENABLE:
-        await send_deployment_creation(db_deployment, settings, request.state.logger)
+        await send_deployment_creation(
+            deployment=db_deployment,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            settings=settings,
+            logger=request.state.logger,
+        )
 
     return {"id": db_deployment.id}
 

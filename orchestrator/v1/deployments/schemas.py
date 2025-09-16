@@ -86,7 +86,7 @@ class DeploymentBase(SQLModel):
             description="Maximum number of retries for each provider. In range [1,10].",
         ),
     ]
-    max_provider: Annotated[
+    max_providers: Annotated[
         int | None,
         Field(
             default=None,
@@ -95,7 +95,7 @@ class DeploymentBase(SQLModel):
             "create the deployment. In range [1, +inf)",
         ),
     ]
-    total_timeout: Annotated[
+    timeout: Annotated[
         int,
         Field(
             default=14400,
@@ -286,61 +286,117 @@ class DeploymentQuery(CreationQuery, PaginationQuery, SortQuery):
             default=None, description="Deployment's user group must contain this string"
         ),
     ]
-    # per_provider_max_retries: Annotated[
-    #     int,
-    #     Field(
-    #         default=3,
-    #         ge=1,
-    #         le=10,
-    #         description="Max number of retries for each provider. In range [1,10]",
-    #     ),
-    # ]
-    # max_provider: Annotated[
-    #     int | None,
-    #     Field(
-    #         default=None,
-    #         ge=1,
-    #         description="The maximum number of cloud providers on which attempt to "
-    #         "create the deployment. In range [1, +inf)",
-    #     ),
-    # ]
-    # total_timeout: Annotated[
-    #     int,
-    #     Field(
-    #         default=14400,
-    #         ge=1,
-    #         le=14400,
-    #        description="Overall timeout value in minutes. It must be greater than 0. "
-    #         "In range [1,14400]",
-    #     ),
-    # ]
-    # per_provider_timeout: Annotated[
-    #     int,
-    #     Field(
-    #         default=1440,
-    #         ge=1,
-    #         le=1440,
-    #         description="Timeout value for a single provider (it does not apply to "
-    #        "single tries but it is the overall timeout for a provider). If provided, "
-    #         "it must be greater than 0 and equal or lower than tot_timeout_mins",
-    #     ),
-    # ]
-    keep_last_attempt: Annotated[
-        bool, Field(default=False, description="Filter deployments with matching flag")
+    user_group_issuer: Annotated[
+        str | None,
+        Field(default=None, description="User group's issuer must contain this string"),
     ]
-    target_provider: Annotated[
+    template_id: Annotated[
+        uuid.UUID,
+        Field(description="The matching template ID must be equal to this value"),
+    ]
+    per_provider_max_retries_gte: Annotated[
+        int | None,
+        Field(
+            default=None,
+            description="Max retries for each provider must be greater than or equal",
+        ),
+    ]
+    per_provider_max_retries_lte: Annotated[
+        int | None,
+        Field(
+            default=None,
+            description="Max retries for each provider must be lower than or equal",
+        ),
+    ]
+    max_providers_gte: Annotated[
+        int | None,
+        Field(
+            default=None,
+            description="Max cloud providers on which attempt creation must be "
+            "greater than or equal",
+        ),
+    ]
+    max_providers_lte: Annotated[
+        int | None,
+        Field(
+            default=None,
+            description="Max cloud providers on which attempt creation must be "
+            "lower than or equal",
+        ),
+    ]
+    timeout_gte: Annotated[
+        int | None,
+        Field(
+            default=None, description="Overall timeout must be greater than or equal"
+        ),
+    ]
+    timeout_lte: Annotated[
+        int | None,
+        Field(default=None, description="Overall timeout must be lower than or equal"),
+    ]
+    per_provider_timeout_gte: Annotated[
+        int | None,
+        Field(
+            default=None,
+            description="Timeout for single provider must be greater than or equal",
+        ),
+    ]
+    per_provider_timeout_lte: Annotated[
+        int | None,
+        Field(
+            default=None,
+            description="Timeout for single provider must lower than or equal",
+        ),
+    ]
+    keep_last_attempt: Annotated[
+        bool | None,
+        Field(default=None, description="Filter deployments with matching flag"),
+    ]
+    target_provider_name: Annotated[
         str | None,
         Field(
             default=None,
             description="Deployment's target provider must contain this string",
         ),
     ]
-    target_region: Annotated[
+    target_region_name: Annotated[
         str | None,
         Field(
             default=None,
             description="Deployment's target region must contain this string",
         ),
+    ]
+    target_iaas_project: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description="IaaS tenant/namespace chosen by the orchestrator must contain "
+            "this string.",
+        ),
+    ]
+    im_infrastructure_id: Annotated[
+        str | None,
+        Field(
+            default=None,
+            description="ID of the corresponding infrastructure in the IM DB must "
+            "contain this string.",
+        ),
+    ]
+    status_reason: Annotated[
+        str | None,
+        Field(default=None, description="Status reason must contain this string."),
+    ]
+    status: Annotated[
+        list[DeploymentStatus],
+        Field(
+            default_factory=list,
+            description="Deployment status must be one of the specified ones. "
+            "If not specified no filtering is applied",
+        ),
+    ]
+    task: Annotated[
+        list[DeploymentTask],
+        Field(default_factory=list, description="Deployment status"),
     ]
 
 

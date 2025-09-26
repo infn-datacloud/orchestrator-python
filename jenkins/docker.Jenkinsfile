@@ -42,7 +42,7 @@ pipeline {
                         }
                     }
                 }
-                stage('Image for single instance deployment with python 3.12 published on DockerHub') {
+                stage('Image with python 3.12 published on DockerHub') {
                     steps {
                         script {
                             dockerRepository.buildAndPushImage(
@@ -54,7 +54,7 @@ pipeline {
                         }
                     }
                 }
-                stage('Image for single instance deployment with python 3.13 published on DockerHub') {
+                stage('Image with python 3.13 published on DockerHub') {
                     steps {
                         script {
                             dockerRepository.buildAndPushImage(

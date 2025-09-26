@@ -9,7 +9,12 @@ services:
     ports:
       - 8000:80
     environment:
-      DB_URL: mysql+pymysql://orchestrator:changeit@orchestrator-db:3306/orchestrator
+      DB_NAME: orchestrator
+      DB_USER: orchestrator
+      DB_PASSWORD: changeit
+      DB_SCHEME: mysql+pymysql
+      DB_HOST: orchestrator-db
+      DB_PORT: 3306
       AUTHN_MODE: local
       AUTHZ_MODE: opa 
     networks:
@@ -31,7 +36,7 @@ services:
     networks:
       - orchestrator-net
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-changeit}", "--silent"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}", "--silent"]
       interval: 5s
       timeout: 5s
       retries: 50

@@ -176,3 +176,6 @@ cython_debug/
 # VSCode and other IDEs
 **/.vscode/**
 !**/.vscode/launch.json
+
+# GitGuardian
+.cache_ggshield

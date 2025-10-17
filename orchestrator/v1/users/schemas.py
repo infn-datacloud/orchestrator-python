@@ -22,6 +22,12 @@ class UserBase(SQLModel):
 
     sub: Annotated[str, Field(description="Subject associated with this user")]
     name: Annotated[str, Field(description="User name and surname")]
+    username: Annotated[
+        str,
+        Field(
+            description="User preferred username. To be used when creating home on VMs"
+        ),
+    ]
     email: Annotated[
         EmailStr, Field(sa_type=AutoString, description="User email address")
     ]

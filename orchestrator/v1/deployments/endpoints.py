@@ -116,7 +116,6 @@ async def create_deployment(
 
     # Retrieve refresh token
     access_token = authz_creds.credentials
-    refresh_token = ""  # TODO retrieve refresh token
 
     msg = f"Creating deployment with params: {deployment.model_dump_json()}"
     request.state.logger.info(msg)
@@ -130,7 +129,6 @@ async def create_deployment(
         await send_deployment_creation(
             deployment=db_deployment,
             access_token=access_token,
-            refresh_token=refresh_token,
             settings=settings,
             logger=request.state.logger,
         )

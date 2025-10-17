@@ -2,6 +2,7 @@
 
 import json
 import uuid
+from datetime import UTC, datetime
 from logging import Logger
 from typing import Annotated, Any
 
@@ -18,9 +19,12 @@ from orchestrator.v1.models import Deployment
 class CreateDepMessage(BaseModel):
     """Message to send to the kafka topic devoted to deployment creation."""
 
-    msg_version: Annotated[str, Field(description="Kafka message version")]
+    msg_version: Annotated[
+        str, Field(default="1.0.0", description="Kafka message version")
+    ]
     deployment_id: Annotated[uuid.UUID, Field(description="Deplouyment UUID in the DB")]
     template: Annotated[str, Field(description="TOSCA template")]
+    template_name: Annotated[str, Field(description="TOSCA template identifier")]
     template_inputs: Annotated[
         dict[str, Any], Field(description="Dictionary with the TOSCA template inputs")
     ]
@@ -87,14 +91,17 @@ class CreateDepMessage(BaseModel):
     target_region_name: Annotated[
         str | None, Field(default=None, description="Name of the target region to use")
     ]
-    owners_ssh_keys: Annotated[
-        list[str], Field(description="List of SSH public keys of deployment owners")
-    ]
+    owner_username: Annotated[str, Field(description="Creator's username")]
+    owner_ssh_public_key: Annotated[str, Field(description="Creator's ssh public key")]
     access_token: Annotated[
         str, Field(description="User's access token to send to the IM")
     ]
-    refresh_token: Annotated[
-        str, Field(description="User's refresh token for longer deployments")
+    timestamp: Annotated[
+        str,
+        Field(
+            default_factory=lambda: datetime.now(UTC).isoformat(),
+            description="Datetime in ISO format of when the message has been sent.",
+        ),
     ]
 
 
@@ -198,7 +205,6 @@ async def send_deployment_creation(
     *,
     deployment: Deployment,
     access_token: str,
-    refresh_token: str,
     settings: Settings,
     logger: Logger,
 ) -> None:
@@ -222,14 +228,13 @@ async def send_deployment_creation(
     """
     try:
         producer = create_kafka_producer(settings, logger)
-        owners_ssh_keys = [owner.public_ssh_key for owner in deployment.owned_by]
         message = CreateDepMessage(
-            msg_version=settings.KAFKA_CREATE_DEP_MSG_VERSION,
             access_token=access_token,
-            refresh_token=refresh_token,
+            owner_username=deployment.owned_by[0].username,
+            owner_ssh_public_key=deployment.owned_by[0].public_ssh_key,
             template=deployment.template.content,
+            template_name=deployment.template.name,
             target_provider_type=deployment.template.target_provider_type,
-            owners_ssh_keys=owners_ssh_keys,
             deployment_id=deployment.id,
             **deployment.model_dump(),
         )

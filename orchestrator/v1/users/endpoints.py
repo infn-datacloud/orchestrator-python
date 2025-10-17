@@ -97,6 +97,7 @@ def create_me(
         sub=current_user_infos.subject,
         issuer=current_user_infos.issuer,
         name=current_user_infos.user_info["name"],
+        username=current_user_infos.user_info["preferred_username"],
         email=current_user_infos.user_info["email"],
     )
     msg = f"Creating user with params: {user.model_dump_json()}"

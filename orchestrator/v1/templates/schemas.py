@@ -1,6 +1,7 @@
 """Templates schemas returned by the endpoints."""
 
 import hashlib
+import json
 from typing import Annotated
 
 import yaml
@@ -18,22 +19,23 @@ from orchestrator.v1.schemas import (
 )
 
 
-def tosca_is_yaml(value: str) -> str:
-    """Verify that TOSCA template is a YAML file.
+def yaml_to_json(value: str) -> str:
+    """Verify that TOSCA template is a YAML file and convert to json.
 
     Args:
         value (str): TOSCA template string.
 
     Returns:
-        str: the input value
+        str: the JSON formatted template
 
     Raises:
         ValueError if input is not in YAML format.
 
     """
     try:
-        yaml.safe_load(value)
-        return value
+        obj = yaml.safe_load(value)
+        txt = json.dumps(obj, indent=2)
+        return txt
     except yaml.YAMLError as e:
         raise ValueError("Input TOSCA template is not a valid YAML file") from e
 
@@ -44,7 +46,7 @@ class TemplateBase(SQLModel):
     content: Annotated[
         str,
         Field(description="TOSCA template body. YAML format"),
-        AfterValidator(tosca_is_yaml),
+        AfterValidator(yaml_to_json),
     ]
 
 

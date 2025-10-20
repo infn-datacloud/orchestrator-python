@@ -50,8 +50,23 @@ services:
       - ../opa/data:/orchestrator:ro
     command: run --server --log-level debug --addr 0.0.0.0:8181 /orchestrator
 
+  vault:
+    image: hashicorp/vault:1.13
+    container_name: vault
+    ports: 
+      - 8200:8200
+    volumes:
+      - vault-logs:/vault/logs
+      - vault-file:/vault/file
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_ADDR: http://localhost:8200
+
 networks:
   orchestrator-net:
 
 volumes:
   db-data:
+  vault-logs:
+  vault-file:

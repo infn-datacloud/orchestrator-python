@@ -160,7 +160,7 @@ async def check_opa_authorization(
             if resp["allow"]:
                 return
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail="Unauthorized to perform this operation",
             )
         case status.HTTP_400_BAD_REQUEST:

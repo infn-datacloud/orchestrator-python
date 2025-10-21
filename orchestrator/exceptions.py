@@ -193,8 +193,8 @@ def add_exception_handlers(app: FastAPI) -> None:
 
         """
         return JSONResponse(
-            status_code=status.HTTP_403_FORBIDDEN,
-            content={"status": status.HTTP_403_FORBIDDEN, "detail": exc.render()},
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"status": status.HTTP_401_UNAUTHORIZED, "detail": exc.render()},
         )
 
     @app.exception_handler(IdentityProviderConnectionError)

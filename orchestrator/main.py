@@ -56,7 +56,7 @@ async def lifespan(app: FastAPI):
 
     """
     state = {}
-    logger = get_logger(settings)
+    logger = get_logger(log_level=settings.LOG_LEVEL)
     state["logger"] = logger
 
     configure_flaat(settings, logger)

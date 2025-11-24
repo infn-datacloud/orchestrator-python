@@ -9,7 +9,7 @@ from sqlmodel import Session
 
 from orchestrator.auth import configure_flaat
 from orchestrator.config import API_V1_STR, get_settings
-from orchestrator.db import create_db_and_tables, dispose_engine
+from orchestrator.db import DBHandler
 from orchestrator.exceptions import add_exception_handlers
 from orchestrator.logger import get_logger
 from orchestrator.v1.router import public_router_v1, secured_router_v1
@@ -60,21 +60,22 @@ async def lifespan(app: FastAPI):
     state["logger"] = logger
 
     configure_flaat(settings, logger)
-    engine = create_db_and_tables(logger)
+
+    db_handler = DBHandler()
+    db_handler.initialize_db()
+
     if settings.VAULT_ENABLE:
         vault_client = create_vault_client(settings, logger)
         state["vault"] = vault_client
 
     # At application startup create or delete fake user based on authn mode
-    with Session(engine) as session:
+    with Session(db_handler.get_engine()) as session:
         if settings.AUTHN_MODE is None:
             create_fake_user(session)
         else:
             delete_fake_user(session)
 
     yield state
-
-    dispose_engine(logger)
 
 
 app = FastAPI(
